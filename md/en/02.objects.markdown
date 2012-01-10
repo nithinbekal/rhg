@@ -154,7 +154,7 @@ By the way, the name of this member is not `class` to make sure it does not
 raise any conflict when the file is processed by a C++ compiler, as it is a
 reserved word.
 
-h4. About structure types
+##### About structure types
 
 I said that the type of structure is stored in the `flags` member of `struct
 Basic`. But why do we have to store the type of structure? It's to be able to
@@ -182,7 +182,7 @@ level use `struct RObject`, so finding a structure from a class would require
 to keep the correspondence between each class and structure. That's why it's
 easier and faster to put the information about the type in the structure.
 
-h4. The use of `basic.flags`
+##### The use of `basic.flags`
 
 As limiting myself to saying that `basic.flags` is used for different things
 including the type of structure makes me feel bad, here's a general
@@ -212,7 +212,7 @@ this. In fact, `VALUE` can also not be a pointer. The 6 cases for which
 
 I'll explain them one by one.
 
-h4. Small integers
+##### Small integers
 
 As in Ruby all data are objects, integers are also objects. However, as there
 are lots of different instances of integers, expressing them as structures
@@ -253,7 +253,7 @@ convert it to `Bignum`. `NUM2INT()` will convert both `Fixnum` and `Bignum` to
 `int`. If the number can't fit in an `int`, an exception will be raised, so
 there is not need to check the value range.
 
-h4. Symbols
+##### Symbols
 
 What are symbols?
 
@@ -316,7 +316,7 @@ Finally, let's see the reverse conversion of `ID2SYM()`, `SYM2ID()`.
 `RSHIFT` is a bit shift to the right. As right shift may keep or not the sign
 depending of the platform, it became a macro.
 
-h4. `true false nil`
+##### `true false nil`
 
 These three are Ruby special objects. `true` and `false` represent the boolean
 values. `nil` is an object used to denote that there is no object. Their
@@ -374,7 +374,7 @@ By the way, what is the '`Q`' of `Qnil`? 'R' I would have understood but why
 '`Q`'? When I asked, the answer was "Because it's like that in Emacs". I did
 not have the fun answer I was expecting...
 
-h4. `Qundef`
+##### `Qundef`
 
 ▼ `Qundef`
 
