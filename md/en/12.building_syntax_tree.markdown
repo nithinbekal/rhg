@@ -1,0 +1,2116 @@
+
+<div>
+
+<h1> Chapter 12 Syntactic Tree</h1> 
+
+<h2> node </h2> 
+
+<h3> <code> NODE </code> </h3> 
+
+<p> 
+Ruby already mentioned above once the construction program will be converted into a tree. 
+And syntax tree is something concrete to say, "nodes (node)" and called 
+Produced by the structure of the tree structure. <code> ruby </code> nodes are not all <code> NODE </code> type 
+Represented. 
+</p> 
+
+<p class="caption"> ▼ <code> NODE </code> </p> 
+<pre class="longlist"> 
+  128 typedef struct RNode ( 
+  129 unsigned long flags; 
+  130 char * nd_file; 
+  131 union ( 
+  132 struct RNode * node; 
+  133 ID id; 
+  134 VALUE value; 
+  135 VALUE (* cfunc) (ANYARGS); 
+  136 ID * tbl; 
+  137) u1; 
+  138 union ( 
+  139 struct RNode * node; 
+  140 ID id; 
+  141 int argc; 
+  142 VALUE value; 
+  143) u2; 
+  144 union ( 
+  145 struct RNode * node; 
+  146 ID id; 
+  147 long state; 
+  148 struct global_entry * entry; 
+  149 long cnt; 
+  150 VALUE value; 
+  151) u3; 
+  152) NODE; 
+
+(node.h) 
+</pre> 
+
+
+<p> 
+Structure name <code> RNode </code> might guess from the object node is Ruby 
+. And the release of the node that is generated <code> ruby </code> is the GABEJIKOREKUTA care. 
+</p> 
+
+<p> 
+So naturally <code> flags </code> is the first object structure <code> basic.flags </code> same role. 
+That is the type of structure <code> T_NODE </code> and <code> FL_FREEZE </code> and other records to the flag. 
+<code> NODE </code> If you add to this type of node <code> flags </code> and store them. 
+</p> 
+
+<p> 
+What do you mean? Program at <code> if </code> and <code> while </code>, <code> def </code> A variety of 
+Because there are elements, corresponding to the many types of nodes. That's 
+Node type. <code> NODE </code> union is a complex that includes three, 
+The union is using only one type of a node in the decision. 
+For example <code> if </code> nodes <code> NODE_IF </code> If these. 
+</p> 
+
+<table> 
+<tbody><tr> <td> member </td><td> </td><td> union members </td><td> </td><td> role </td><td> </td></tr> 
+<tr> <td> <code> u1 </code> </td><td> </td><td> <code> u1.node </code> </td><td> </td><td> conditional expression </td><td> </td></tr> 
+<tr> <td> <code> u2 </code> </td><td> </td><td> <code> u2.node </code> </td><td> </td><td> true body </td><td> </td></tr> 
+<tr> <td> <code> u3 </code> </td><td> </td><td> <code> u3.node </code> </td><td> </td><td> fake body </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+Also <code> node.h </code>, the union members to access the macro have been 
+. 
+</p> 
+
+<p class="caption"> ▼ <code> NODE </code> macro access </p> 
+<pre class="longlist"> 
+  166 # define nd_head u1.node 
+  167 # define nd_alen u2.argc 
+  168 # define nd_next u3.node 
+  169 
+  170 # define nd_cond u1.node 
+  171 # define nd_body u2.node 
+  172 # define nd_else u3.node 
+  173 
+  174 # define nd_orig u3.value 
+                  : 
+                  : 
+
+(node.h) 
+</pre> 
+
+
+<p> 
+For example KONNAFUUNI use. 
+</p> 
+
+<pre class="emlist"> 
+NODE * head, * tail; 
+head-&gt; nd_next = tail; / * head-&gt; u3.node = tail * / 
+</pre> 
+
+<p> 
+In the most likely source of this macro it is used. The negligible 
+The exception is <code> parse.y </code>, <code> NODE </code> to generate about it and <code> gc.c </code>, <code> NODE </code> mark 
+It's only two places. 
+</p> 
+
+<p> 
+By the way like this is to use a macro Why? One is, <code> u1 </code> like it 
+Nothing is meaningless figure is troublesome to learn from. But the more weight 
+It is important, the corresponding figures are not mind changing the actual change may have 
+. For example <code> if </code> conditional clause <code> u1 </code> on the necessity because, if for some reason 
+Oil and <code> u2 </code> might be変えたく. But <code> u1 </code> directly, if SOSUKO 
+Around a re-end and ears and inconvenient. The entire node <code> NODE </code>, 
+To be declared, <code> if </code> representing the node is hard to find. Access to macro - 
+I do have one, you can not be, contrary to the macro-node to determine SU 
+It will also be able to. 
+</p> 
+
+
+
+<h3> node type </h3> 
+
+<p> 
+<code> NODE </code> structure <code> flags </code> has a node in the types of storage said. 
+This information, let us look at how to memory. Node type is <code> nd_set_type () </code>, 
+Set, <code> nd_type () </code> can be obtained. 
+</p> 
+
+<p class="caption"> ▼ <code> nd_type nd_set_type </code> </p> 
+<pre class="longlist"> 
+  156 # define nd_type (n) (((RNODE (n)) -&gt; flags&gt;&gt; FL_USHIFT) &amp; 0xff) 
+  157 # define nd_set_type (n, t) \ 
+  158 RNODE (n) -&gt; flags = ((RNODE (n) -&gt; flags &amp; ~ FL_UMASK) \ 
+                              | (((T) &lt;<fl_ushift) &="" fl_umask))="" (node.h)="" <="" pre=""> 
+
+
+<p class="caption"> ▼ <code> FL_USHIFT FL_UMASK </code> </p> 
+<pre class="longlist"> 
+  418 # define FL_USHIFT 11 
+  429 # define FL_UMASK (0xff &lt;<fl_ushift) (ruby.h)="" <="" pre=""> 
+
+
+<p> 
+<code> nd_type </code> per TAISHITE should pay attention to home. 
+YOUSURUNI as shown in Figure 1 is heard. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_flagUsage.jpg" alt="(flagUsage)"> <br> 
+Figure 1: RNode.flags used in the way 
+</p> 
+
+<p> 
+Then, as the macro function to be used in the debugger <code> nodetype () </code> and 
+Have already done that. 
+</p> 
+
+<p class="caption"> ▼ <code> nodetype </code> </p> 
+<pre class="longlist"> 
+4247 static enum node_type 
+4248 nodetype (node) / * for debug * / 
+4249 NODE * node; 
+(4250 
+4251 return (enum node_type) nd_type (node); 
+4252) 
+
+(parse.y) 
+</pre> 
+
+
+
+
+<h3> file name and line number </h3> 
+
+<p> 
+<code> NODE </code>-<code> nd_file </code> node corresponding to the existing text is filenames 
+(A pointer) is kept. If the file name and line number is likely that 
+Members are not seem appropriate. In fact, the following macro-line number <code> flags </code> to 
+Fill the frame. 
+</p> 
+
+<p class="caption"> ▼ <code> nd_line nd_set_line </code> </p> 
+<pre class="longlist"> 
+  160 # define NODE_LSHIFT (FL_USHIFT +8) 
+  161 # define NODE_LMASK (((long) 1 &lt;&lt;(sizeof (NODE *) * CHAR_BIT-NODE_LSHIFT)) -1) 
+  162 # define nd_line (n) \ 
+           ((unsigned int) ((RNODE (n) -&gt; flags&gt;&gt; NODE_LSHIFT) &amp; NODE_LMASK)) 
+  163 # define nd_set_line (n, l) \ 
+  164 RNODE (n) -&gt; flags = ((RNODE (n) -&gt; flags &amp; ~ (-1 &lt;<node_lshift)) \="" |="" (((l)="" &="" node_lmask)="" <<node_lshift))="" (node.h)="" <="" pre=""> 
+
+
+<p> 
+<code> nd_set_line () </code> are quite magnificent. But the name of her <code> nd_set_line () </code> and 
+<code> nd_line </code> is a symmetrical work, so it is no doubt a simple <code> nd_line () </code> investigating 
+Parameters, if the relationship grabbed <code> nd_set_line () </code> It is necessary analysis 
+There is no. 
+</p> 
+
+<p> 
+First <code> NODE_LSHIFT </code> However, this is the type of nodes in the preceding paragraph to see me talking to imagine 
+As you can, <code> flags </code> the number of bits used. <code> FL_USHIFT </code> is <code> ruby </code> system 
+Book (11-bit, <code> ruby.h </code>), 8 minutes node type. 
+</p> 
+
+<p> 
+Then <code> NODE_LMASK </code>. 
+</p> 
+
+<pre class="emlist"> 
+sizeof (NODE *) * CHAR_BIT - NODE_LSHIFT 
+</pre> 
+
+<p> 
+The remaining bits. To <code> restbits </code> is the place to try. Then 
+Much easier. 
+</p> 
+
+<pre class="emlist"> 
+# define NODE_LMASK (((long) 1 &lt;<restbits) -="" 1)="" <="" pre=""> 
+
+<p> 
+That is like KOTORASHII Figure 2. 
+1 draw and will happen again this time falling a point. 
+Ultimately <code> NODE_LMASK </code> is still available for a sequence of bits of it understandable. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_lmask.jpg" alt="(lmask)"> <br> 
+Figure 2: <code> NODE_LMASK </code> 
+</p> 
+
+<p> 
+Has once again <code> nd_line () </code> to look at. 
+</p> 
+
+<pre class="emlist"> 
+(RNODE (n) -&gt; flags&gt;&gt; NODE_LSHIFT) &amp; NODE_LMASK 
+</pre> 
+
+<p> 
+Shift to the right to an unused space LSB to drop a bit. Bit by bit and the unused territory 
+Only region to leave. In other words <code> flags </code> how to put together and used as in Figure 3 
+Said. <code> FL_USHIFT </code> was 11, 32-bit machine is 32 - (10 +8) = 13-bit 
+Minutes-line number to use it. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_flags.jpg" alt="(flags)"> <br> 
+Figure 3: <code> NODE </code>, <code> flags </code> using 
+</p> 
+
+<p> 
+…… That the line number is 2 ^ 13 = 8192 and the line number is more than 
+Should be mad. Paced puzzler. 
+</p> 
+
+<pre class="emlist"> 
+File.open ( 'overflow.rb', 'w') (| f | 
+     10000.times (f.puts) 
+     f.puts' raise ' 
+) 
+</pre> 
+
+<p> 
+On my machines, a 686 <code> ruby overflow.rb </code> Kick Chile in 1809 and displayed on the line. Sung 
+Isao. However 64-bit machine is a little bigger files do not speak 
+It can not fail. 
+</p> 
+
+
+
+<h3> <code> rb_node_newnode () </code> </h3> 
+
+<p> 
+Finally, the function that generates node <code> rb_node_newnode () </code> to see. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_node_newnode () </code> </p> 
+<pre class="longlist"> 
+4228 NODE * 
+4229 rb_node_newnode (type, a0, a1, a2) 
+4230 enum node_type type; 
+4231 NODE * a0, * a1, * a2; 
+(4232 
+4233 NODE * n = (NODE *) rb_newobj (); 
+4234 
+4235 n-&gt; flags | = T_NODE; 
+4236 nd_set_type (n, type); 
+4237 nd_set_line (n, ruby_sourceline); 
+4238 n-&gt; nd_file = ruby_sourcefile; 
+4239 
+4240 n-&gt; u1.node = a0; 
+4241 n-&gt; u2.node = a1; 
+4242 n-&gt; u3.node = a2; 
+4243 
+4244 return n; 
+4245) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> rb_newobj () </code> Chapter 5 of the moth - BEJIKOREKUSHON, has ever seen. Unoccupied <code> RVALUE </code> to retrieve one 
+Functions. This structure flag <code> T_NODE </code> dipped at <code> VALUE </code> as 
+Initialization is complete. <code> u1 u2 u3 </code> of course <code> NODE * </code> can also receive the value of non-Oh 
+Of thing, but in the meantime <code> NODE * </code> together by it. <code> ruby </code> syntax is a tree 
+<code> double </code> pointer, and so are not counted by size is too small, you can say 
+The following is not worried. 
+</p> 
+
+<p> 
+Write to know, forget the rest is details, <code> NODE </code> and 
+</p> 
+
+<ul> 
+<li> <code> flags </code> </li> 
+<li> <code> nodetype </code> </li> 
+<li> <code> nd_line </code> </li> 
+<li> <code> nd_file </code> </li> 
+<li> <code> u1 </code> </li> 
+<li> <code> u2 </code> </li> 
+<li> <code> u3 </code> </li> 
+</ul> 
+
+<p> 
+Seven members of a structure I think you need. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> wooden building construction </h2> 
+
+<p> 
+The role of a string of bytes parser source code to convert it for use. 
+Grammar is passed on to the job only half KONASE is not even a pair of nodes 
+There should be a tree stand. The construction of this section is a look at the tree-building process 
+Let's. 
+</p> 
+
+
+<h3> <code> YYSTYPE </code> </h3> 
+
+<p> 
+This chapter is to say YOUSURUNI action, <code>$$</code> and <code> $ 1 </code> type of 
+<code> YYSTYPE </code> is important to it. First <code> ruby </code>-<code>% union </code> to look at. 
+</p> 
+
+<p class="caption"> ▼ <code>% union </code> declaration </p> 
+<pre class="longlist"> 
+  170% union ( 
+  171 NODE * node; 
+  172 ID id; 
+  173 int num; 
+  174 struct RVarmap * vars; 
+  175) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> struct RVarmap </code> evaluator of the structure, to store a block local variables. 
+The rest is good. Of course, most use them <code> node </code>. 
+</p> 
+
+
+
+<h3> syntax tree landscape </h3> 
+
+<p> 
+First, the facts of the theory that he read the code. Now what kind of structure 
+Thursday's statement can not because you want to know, first the answer (for use) to see 
+To begin. 
+</p> 
+
+<p> 
+Looking at all of the time in the debugger any time, attach a tool CD-ROM. 
+<code> nodedump </code> \ footnote (<code> nodedump </code>: The accompanying CD-ROM <code> tools / nodedump.tar.gz </code>) a 
+Easy to use and more syntax tree can be visualized. This tool is 
+Pragmatic Programmers \ footnote (Pragmatic Programmers ^ http://www.pragmaticprogrammers.com) film 
+NodeDump for a reshuffle of this document. 
+Original output is very descriptive, but to me, this revamped version of the 
+The figure beat the syntax tree to direct the output to. 
+</p> 
+
+<p> 
+For example <code> m (a) </code> dump the simple formula is the only way to do good. 
+</p> 
+
+<pre class="screen"> 
+% Ruby-rnodedump-e 'm (a)' 
+NODE_NEWLINE 
+nd_file = "-e" 
+nd_nth = 1 
+nd_next: 
+     NODE_FCALL 
+     nd_mid = 9617 (m) 
+     nd_args: 
+         NODE_ARRAY 
+         nd_alen = 1 
+         nd_head: 
+             NODE_VCALL 
+             nd_mid = 9625 (a) 
+         nd_next = (null) 
+</pre> 
+
+<p> 
+<code>-r </code> options you want to load the library, <code>-e </code> to pass the program. 
+The expression is the program for use by the dump. 
+</p> 
+
+<p> 
+Look at the way the contents of a simple explanation. <code> NODE_NEWLINE </code> and <code> NODE_FCALL </code> is the 
+Node type. The same is written in an indentation in the node-Men 
+BAS contents. For example, is the root of <code> NODE_NEWLINE </code> and its members are 
+<code> nd_file nd_nth nd_next </code> three. <code> nd_file </code> string of C <code> "-e" </code> points, 
+<code> nd_nth </code> C is a whole number of points, <code> nd_next </code> the next node <code> NODE_CALL </code> is stored 
+Being. Words and telling him not to be confusing, and the contrast in Figure 4 
+I want to try. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_stree.jpg" alt="(stree)"> <br> 
+Figure 4: syntax tree 
+</p> 
+
+<p> 
+Each node and explain the meaning, <code> NODE_FCALL </code> is Function CALL. 
+<code> NODE_ARRAY </code> is the name of the array of nodes, where a list of arguments 
+Respectively. <code> NODE_VCALL </code> is Variable or CALL, local variables undefined 
+In a reference. 
+</p> 
+
+<p> 
+, <code> NODE_NEWLINE </code> What? This is the time to run the file name and line running 
+Number of nodes in the suit, <code> stmt </code> one set for each one. So 
+Execution is considering the meaning of this node will ignore it. Also <code> nodedump </code> of 
+Instead <code> nodedump-short </code> and <code> require </code> Then the first place <code> NODE_NEWLINE </code> me 
+U is a distraction Back to the area. It is simple and easy to look at the future 
+Especially as write <code> nodedump-short </code> to use. 
+</p> 
+
+<p> 
+The following is a syntax tree to capture the overall look for three types of components 
+We take a look at. First syntax leaves (leaf). Then a combination of the ceremony, 
+That is the syntax tree branch. Finally, a list that is to lay out the sentence syntax tree trunks. 
+</p> 
+
+
+
+<h3> leaves </h3> 
+
+<p> 
+First terminal, to look at the syntax of leaves. 
+And variables such as a literal reference, 
+And the rules say <code> primary </code> in a particularly simple fall into this category. 
+</p> 
+
+<pre class="screen"> 
+% Ruby-rnodedump-short-e'1 ' 
+NODE_LIT 
+nd_lit = 1: Fixnum 
+</pre> 
+
+<p> 
+Numeric 1. HINERI what is not. But where do you belong to the node 
+1 C, but Ruby's 1 (<code> Fixnum </code> 1) It is important to be careful. Why? 
+Said…… 
+</p> 
+
+<pre class="screen"> 
+% Ruby-rnodedump-short-e ': sym' 
+NODE_LIT 
+nd_lit = 9617: Symbol 
+</pre> 
+
+<p> 
+In this way, <code> Symbol </code> syntax of the same tree and <code> NODE_LIT </code> represented by. 
+We always <code> nd_lit </code> in <code> VALUE </code> like to put it on, <code> Symbol </code> awful. 
+UTO <code> Fixnum </code> would run when you are dealing with exactly the same way as we can. - 
+Marika, <code> nd_lit </code> to retrieve the return value as well. It's syntax tree 
+In order to make it run because of the run to make it work is correct. 
+</p> 
+
+<pre class="screen"> 
+% Ruby-rnodedump-short-e ' "a"' 
+NODE_STR 
+nd_lit = "a": String 
+</pre> 
+
+<p> 
+String. This is Ruby's string. 
+A string literal, so when you are actually a copy. 
+</p> 
+
+<pre class="screen"> 
+% Ruby-rnodedump-e '[0,1]' 
+NODE_NEWLINE 
+nd_file = "-e" 
+nd_nth = 1 
+nd_next: 
+     NODE_ARRAY 
+     nd_alen = 2 
+     nd_head: 
+         NODE_LIT 
+         nd_lit = 0: Fixnum 
+     nd_next: 
+         NODE_ARRAY 
+         nd_alen = 1 
+         nd_head: 
+             NODE_LIT 
+             nd_lit = 1: Fixnum 
+         nd_next = (null) 
+</pre> 
+
+<p> 
+Arrays. This is a leaf can not say, OK, so literal and ties. 
+<code> NODE_ARRAY </code> list of nodes in each element suspensory feel? 
+That <code> nodedump-short </code>…… reason not to use this section you'll read to the end. 
+</p> 
+
+
+
+<h3> branch </h3> 
+
+<p> 
+The following is part of the branch…… "combination" to focus on. 
+Take the example <code> if </code>. 
+</p> 
+
+<h4> <code> if </code> </h4> 
+
+<p> 
+NANIKATO said <code> if </code> to the example just feel like, but it is of course structure 
+And it is simple, <code> if </code> reader does not know to write it from a convenient. 
+</p> 
+
+<p> 
+Anyway it is <code> if </code> example. For example, a number of trees to try to syntax. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+if true 
+   'true expr' 
+else 
+   'false expr' 
+end 
+</pre> 
+
+
+The syntax tree representation <p class="caption"> ▼ </p> 
+<pre class="longlist"> 
+NODE_IF 
+nd_cond: 
+     NODE_TRUE 
+nd_body: 
+     NODE_STR 
+     nd_lit = "true expr": String 
+nd_else: 
+     NODE_STR 
+     nd_lit = "false expr": String 
+</pre> 
+
+
+<p> 
+This is the aforementioned <code> nodedump-short </code> allows it <code> NODE_NEWLINE </code> is removed and 
+Be. <code> nd_cond </code> criteria, <code> nd_body </code> If the body is true, <code> nd_else </code> is false. 
+In the case of the body. 
+</p> 
+
+<p> 
+Now it has to make a look at the code. 
+</p> 
+
+<p class="caption"> ▼ <code> if </code> rules </p> 
+<pre class="longlist"> 
+1373 | kIF expr_value then 
+1374 compstmt 
+1375 if_tail 
+1376 kEND 
+(1377 
+1378 $ $ = NEW_IF (cond ($ 2), $ 4, $ 5); 
+1379 fixpos ($ $, $ 2); 
+1380) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> NEW_IF () </code> which is <code> NODE_IF </code> to generate MAKURORASHII. The value of symbols 
+<code> $ 2 $ 4 $ 5 </code> using the symbols and rules <code> $ n </code> deal with it 
+</p> 
+
+<pre class="emlist"> 
+kIF expr_value then compstmt if_tail kEND 
+  $ 1 $ 2 $ 3 $ 4 $ 5 $ 6 
+NEW_IF (expr_value, compstmt, if_tail) 
+</pre> 
+
+<p> 
+. In other words <code> expr_value </code> is conditional expression, <code> compstmt </code> (<code> $ 4 </code>) is true, 
+<code> if_tail </code> If it is false. 
+</p> 
+
+<p> 
+Meanwhile, all nodes to generate a macro <code> NEW_xxxx </code> with the name, <code> node.h </code> Definition 
+. <code> NEW_IF () </code> to look at. 
+</p> 
+
+<p class="caption"> ▼ <code> NEW_IF () </code> </p> 
+<pre class="longlist"> 
+  243 # define NEW_IF (c, t, e) rb_node_newnode (NODE_IF, c, t, e) 
+
+(node.h) 
+</pre> 
+
+
+<p> 
+Each parameter is <code> c </code> that condition, <code> t </code> was then, <code> e </code> else to represent that. 
+As the previous section, the node is a member of the order does not make much sense 
+I do not see into the parameter name is not necessary. 
+</p> 
+
+<p> 
+The conditional expression of action to deal with node <code> cond () </code> function of the analysis is meaningless. 
+This is described below. 
+</p> 
+
+<p> 
+And <code> fixpos () </code> line number is correct them. <code> NODE </code> of them are "generated 
+When the "loading of the file name and line number to be initialized. But <code> if </code> to 
+I think about it, <code> NODE_IF </code> when making already <code> end </code> to Perth to that. 
+So let go and ZURERU line number. So <code> fixpos () </code> and the correction 
+Rather, they said. 
+</p> 
+
+<pre class="emlist"> 
+fixpos (dest, src) 
+</pre> 
+
+<p> 
+The node <code> dest </code> row number of nodes <code> src </code> ones. <code> if </code> say, 
+<code> if </code> formula applies to the entire line is the line number of conditions to the ceremony. 
+</p> 
+
+<h4> <code> elsif </code> </h4> 
+
+<p> 
+Then <code> if_tail </code> also look at the rules. 
+</p> 
+
+<p class="caption"> ▼ <code> if_tail </code> </p> 
+<pre class="longlist"> 
+1543 if_tail: opt_else 
+1544 | kELSIF expr_value then 
+1545 compstmt 
+1546 if_tail 
+(1547 
+1548 $ $ = NEW_IF (cond ($ 2), $ 4, $ 5); 
+1549 fixpos ($ $, $ 2); 
+1550) 
+
+1553 opt_else: none 
+1554 | kELSE compstmt 
+(1555 
+1556 $ $ = $ 2; 
+1557) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+First, the rule is "zero or more <code> elsif </code> clause after <code> opt_else </code> that ends" 
+Respectively. Because, <code> elsif </code> have been limited <code> if_tail </code> without appearing to reproduce, 
+<code> opt_else </code> to come and gone. Appropriate rules to expand the number of eyes Each 
+Be. 
+</p> 
+
+<pre class="emlist"> 
+if_tail: kELSIF .... if_tail 
+if_tail: kELSIF .... kELSIF .... if_tail 
+if_tail: kELSIF .... kELSIF .... kELSIF .... if_tail 
+if_tail: kELSIF .... kELSIF .... kELSIF .... opt_else 
+if_tail: kELSIF .... kELSIF .... kELSIF .... kELSE compstmt 
+</pre> 
+
+<p> 
+Then the attention and action, what, <code> elsif </code> normal, 
+<code> if </code> same <code> NEW_IF () </code> to use it. In other words, following two programs 
+Syntax tree to become the difference between them is that they were missing. 
+</p> 
+
+<pre class="emlist"> 
+if cond1 if cond1 
+   body1 body1 
+elsif cond2 else 
+   body2 if cond2 
+elsif cond3 body2 
+   body3 else 
+else if cond3 
+   body4 body3 
+end else 
+                                 body4 
+                               end 
+                             end 
+                           end 
+</pre> 
+
+<p> 
+I said that's kind of like the C language syntax level, this does not distinguish between the two, 
+It might be natural course. Another option is conditional operator (<code> a? B: c </code>) and a syntax tree 
+And <code> if </code> statement and the distinction is out of control. 
+</p> 
+
+<p> 
+Grammar, it is important to him is a priority for use of the structure itself contains information 
+Because no longer needed. Also <code> if </code> and conditions for operators like the difference between watching has reached 
+It is no longer any sense of the meaning of (behavior) are important. So <code> if </code> 
+Operators and conditions for use, you can do exactly the same expression that's fine. 
+</p> 
+
+<p> 
+These are some examples to try out. <code> and </code> and <code>&amp;&amp;</code> are the same. 
+<code> or </code> and <code>||</code> same. <code> not </code> and <code>! </code>, <code> if </code> and qualified <code> if </code>, and so is identical. 
+</p> 
+
+<h4> reflexive left and right reflexive </h4> 
+
+<p> 
+By the way, Chapter 9 crash <code> yacc </code> list, we always represent the list of symbols 
+Was written on the left, <code> if_tail </code> Conversely, it has been noticed? 
+The following is the point where it regrouped. 
+</p> 
+
+<pre class="emlist"> 
+if_tail: opt_else 
+        | KELSIF ... if_tail 
+</pre> 
+
+<p> 
+Until now, and certainly the opposite. No. list <code> if_tail </code> is right. 
+</p> 
+
+<p> 
+In fact, the list is another routine there, 
+</p> 
+
+<pre class="emlist"> 
+list: END_ITEM 
+     | ITEM list 
+</pre> 
+
+<p> 
+And write, <code> ITEM </code> continued to zero or more <code> END_ITEM </code> ends with a list. 
+</p> 
+
+<p>
+Both list as a representation would be less significant differences, but not the actions 
+The execution-style have been fatally different. <code> list </code> to the right format to write back 
+<code> ITEM </code> order from the action. Left <code> list </code> ifスタッ 
+QUEUE movement has been done, right <code> list </code> If you have to try. Enter the 
+<code> ITEM </code> and four <code> END_ITEM </code>. 
+</p> 
+
+<table> 
+<tbody><tr> <td> </td><td> </td><td> first check the </td><td> </td></tr> 
+<tr> <td> <code> ITEM </code> </td><td> </td><td> <code> ITEM </code> to shift </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM </code> </td><td> </td><td> <code> ITEM </code> to shift </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM ITEM </code> </td><td> </td><td> <code> ITEM </code> to shift </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM ITEM ITEM </code> </td><td> </td><td> <code> ITEM </code> to shift </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM ITEM ITEM END_ITEM </code> </td><td> </td><td> <code> END_ITEM </code> to shift </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM ITEM ITEM list </code> </td><td> </td><td> <code> END_ITEM </code> → <code> list </code> reduction in </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM ITEM list </code> </td><td> </td><td> <code> ITEM list </code> → <code> list </code> reduction in </td><td> </td></tr> 
+<tr> <td> <code> ITEM ITEM list </code> </td><td> </td><td> <code> ITEM list </code> → <code> list </code> reduction in </td><td> </td></tr> 
+<tr> <td> <code> ITEM list </code> </td><td> </td><td> <code> ITEM list </code> → <code> list </code> reduction in </td><td> </td></tr> 
+<tr> <td> <code> list </code> </td><td> </td><td> <code> ITEM list </code> → <code> list </code> reduction in </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> accept. </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+"Left to <code> list </code>" when the reduction of shift and had been held alternately, 
+As you can see much of this shift, much reduction in the analysis. 
+</p> 
+
+<p> 
+Why <code> if_tail </code> "right <code> list </code>" I had to say, for use in a bottom-up 
+Make. Finally, make a bottom-up and <code> if </code> nodes have forgotten. Shimo Shika 
+"Left <code> list </code>", <code> if_tail </code> to define, the last to hand <code> if </code> nodes in order to leave 
+Is <code> elsif </code> to find every time <code> elsif </code>辿っlinks to all of them to add at the end of 
+IKENAKU become desired. This is a pain. TSUIDENI late. So 
+<code> if_tail </code> "The right is <code> list </code>" have built. 
+</p> 
+
+<p> 
+Finally headlines, but the meaning, grammar and terminology. 
+"Left to <code> list </code>" reflexive left (left recursion), 
+"The right is <code> list </code>" right-reflexive (right recursion) said. 
+This term is mainly grammar and the ability to read a paper processing <code> yacc </code> used to write books. 
+</p> 
+
+
+
+<h3> stem </h3> 
+
+<p> 
+Leaves, branches and would end up in the trunk. 
+Together to make a statement in a list of what's going see. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+7 
+8 
+Nine 
+</pre> 
+
+
+<p> 
+The corresponding syntax tree, looks like a dump. 
+This is <code> nodedump-short </code> not complete. 
+</p> 
+
+<p class="caption"> ▼ corresponding syntax tree </p> 
+<pre class="longlist"> 
+NODE_BLOCK 
+nd_head: 
+     NODE_NEWLINE 
+     nd_file = "multistmt" 
+     nd_nth = 1 
+     nd_next: 
+         NODE_LIT 
+         nd_lit = 7: Fixnum 
+nd_next: 
+     NODE_BLOCK 
+     nd_head: 
+         NODE_NEWLINE 
+         nd_file = "multistmt" 
+         nd_nth = 2 
+         nd_next: 
+             NODE_LIT 
+             nd_lit = 8: Fixnum 
+     nd_next: 
+         NODE_BLOCK 
+         nd_head: 
+             NODE_NEWLINE 
+             nd_file = "multistmt" 
+             nd_nth = 3 
+             nd_next: 
+                 NODE_LIT 
+                 nd_lit = 9: Fixnum 
+         nd_next = (null) 
+</pre> 
+
+
+<p> 
+<code> NODE_BLOCK </code> list is ready, and <code> NODE_NEWLINE </code> is a header 
+Sticking to understand that (Fig. 5). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_blocklist.jpg" alt="(blocklist)"> <br> 
+Figure 5: <code> NODE_BLOCK </code> and <code> NODE_NEWLINE </code> 
+</p> 
+
+<p> 
+In other words statement (<code> stmt </code>) at the rate of one <code> NODE_NEWLINE </code> is included, and it is lined with more than 
+<code> NODE_BLOCK </code> to be listed. Let us also take a look at code. 
+</p> 
+
+<p class="caption"> ▼ <code> stmts </code> </p> 
+<pre class="longlist"> 
+  354 stmts: none 
+  355 | stmt 
+  356 ( 
+  357 $ $ = newline_node ($ 1); 
+  358) 
+  359 | stmts terms stmt 
+  360 ( 
+  361 $ $ = block_append ($ 1, newline_node ($ 3)); 
+  362) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> newline_node () </code>, <code> NODE_NEWLINE </code> to cover, 
+<code> block_append () </code> connect to the list. Descriptive. 
+<code> block_append () </code>, let us just look at the contents. 
+</p> 
+
+<h4> <code> block_append () </code> </h4> 
+
+<p> 
+This function is in the middle of the error-checking, so there are disturbing 
+Back to that part of the show. 
+</p> 
+
+<p class="caption"> ▼ <code> block_append () </code> (shorthand version) </p> 
+<pre class="longlist"> 
+4285 static NODE * 
+4286 block_append (head, tail) 
+4287 NODE * head, * tail; 
+(4288 
+4289 NODE * end; 
+4290 
+4291 if (tail == 0) return head; 
+4292 if (head == 0) return tail; 
+4293 
+4294 if (nd_type (head)! = NODE_BLOCK) ( 
+4295 end = NEW_BLOCK (head); 
+4296 end-&gt; nd_end = end; / * (A-1) * / 
+4297 fixpos (end, head); 
+4298 head = end; 
+4299) 
+4300 else ( 
+4301 end = head-&gt; nd_end; / * (A-2) * / 
+4302) 
+
+           / *…… Back…… * / 
+
+4325 if (nd_type (tail)! = NODE_BLOCK) ( 
+4326 tail = NEW_BLOCK (tail); 
+4327 tail-&gt; nd_end = tail; 
+4328) 
+4329 end-&gt; nd_next = tail; 
+4330 head-&gt; nd_end = tail-&gt; nd_end; / * (A-3) * / 
+4331 return head; 
+4332) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+According to dump trees and syntax <code> NODE_BLOCK </code> is <code> nd_next </code> using a linked list. 
+Also note that read, "<code> head </code> and <code> tail </code> either <code> NODE_BLOCK </code> DENAKATTARA 
+<code> NODE_BLOCK </code> in the case, a consolidated list to each other, "read. 
+</p> 
+
+<p> 
+And (A-1 〜 3), the top of the list <code> NODE_BLOCK </code>-<code> nd_end </code> is always at the end of the list 
+Tail <code> NODE_BLOCK </code> to point to that. Thus, if every list 
+辿らなくat the end of all the elements to be able to be consolidated (Fig. 6). 
+In other words, should be added to the list when <code> NODE_BLOCK </code> is 
+Suited to it. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_append.jpg" alt="(append)"> <br> 
+Figure 6: Add it easier 
+</p> 
+
+
+
+<h3> two lists </h3> 
+
+<p> 
+Now, here at the headline said. Syntax wooden structure are also part of the third 
+Come to mass, the second part is to keep this long. But before the end of 
+I want to talk about one thing. It consists of two generic list. 
+</p> 
+
+<p> 
+The list is two, <code> BLOCK </code> and <code> LIST </code>. <code> BLOCK </code> described the just - 
+<code> NODE_BLOCK </code> the linked list, which connects to a statement. <code> LIST </code>, 
+<code> LIST </code> saying that while the entity <code> NODE_ARRAY </code> list. Array literal 
+Who have been used. <code> LIST </code> method is a list of arguments and multiple assignment 
+Stored and used. 
+</p> 
+
+<p> 
+This list of the differences between the two nodes of how to use and easy to understand. 
+</p> 
+
+<table> 
+<tbody><tr> <td> <code> NODE_BLOCK </code> </td><td> </td><td> <code> nd_head </code> </td><td> </td><td> elements to store </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> <code> nd_end </code> </td><td> </td><td> list last <code> NODE_BLOCK </code> points </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> <code> nd_next </code> </td><td> </td><td> following <code> NODE_BLOCK </code> points </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> </td><td> </td><td> </td><td> </td></tr> 
+<tr> <td> <code> NODE_ARRAY </code> </td><td> </td><td> <code> nd_head </code> </td><td> </td><td> elements to store </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> <code> nd_alen </code> </td><td> </td><td> later this node list length </td><td> </td></tr> 
+<tr> <td> </td><td> </td><td> <code> nd_next </code> </td><td> </td><td> following <code> NODE_ARRAY </code> points </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+Usage is the difference between the second element, <code> nd_end </code> and <code> nd_alen </code> only. 
+And that is their raison d'etre. <code> NODE_ARRAY </code> to store size 
+, So often the size of this list may be required for <code> ARRAY </code> to use the list. 
+Otherwise, it is bound fast <code> BLOCK </code> to use the list. This is Enough 
+Use code to see that it is not known, so deeply not talk about the significance of the 
+After the third appearance of the "Oh, I'm with length," he remembers. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> semantic analysis </h2> 
+
+<p> 
+The second part is the first FURETA easily bite-analysis of the program say they also want to 
+Analysis and meaningful analysis of the two. The analysis is to look at <code> yacc </code> they are almost done, 
+After the action was in the good sense to do the analysis. 
+</p> 
+
+
+Action <h3> error in the </h3> 
+
+<p> 
+Analysis and concrete meaning of what it is? In language, for example-type test. 
+In addition, many times the same name variables that are not defined or defined before does not use 
+Or using procedures that are defined and procedures outside <code> return </code> and you have a 
+How, and semantic analysis is included. 
+</p> 
+
+<p> 
+Current <code> ruby </code>, meaning he has been analyzing what? If you look at our example and 
+<code> ruby </code>, error checking accounts for most of the analysis is significant because the errors out 
+And you'll find someone looks good. <code> yacc </code> parser error in 
+Sometimes <code> yyerror () </code> to call itself…… In other words <code> yyerror () </code> to 
+By the way, he said the error occurred. So in Action 
+<code> yyerror () </code> to call him to list the location. 
+</p> 
+
+<ul> 
+<li> value is required to place a value equation does not (void value expression) </li> 
+<li> <code> $ n </code>-<code> alias </code> </li> 
+<li> method in the <code> BEGIN </code> </li> 
+<li> method in the <code> END </code> </li> 
+<li> method outside <code> return </code> </li> 
+<li> constant at the request of local variables </li> 
+<li> method in the <code> class </code> statement </li> 
+<li> inappropriate variable parameters (<code> $ gvar </code> and <code> CONST </code>, etc.) </li> 
+<li> variable parameters of the same name comes out twice </li> 
+<li> inappropriate methods specific receivers (<code> def (). method </code>, etc.) </li> 
+<li> literal definition of the specific method </li> 
+<li> hash literal list of odd </li> 
+<li> <code> self / nil / true / false / __FILE__ / __LINE__ </code> assigned to the </li> 
+<li> constant in the method of assigning </li> 
+<li> conditional expression in the multiple assignment </li> 
+</ul> 
+
+<p> 
+These checks are roughly the following classes of purpose. 
+</p> 
+
+<ul> 
+I give an error from <li> </li> 
+<li> rules only complicate the </li> 
+Otherwise <li> (purely semantic analysis) </li> 
+</ul> 
+
+<p> 
+For example, a "method outside <code> return </code>" is the only complex rules to be checked 
+. This error is a structural problem because I can not deal with grammar. 
+For example, methods and rules out a separate statement, and allowed the unforgivable 
+Tiles do all things for their good. But also consider how to take care of it now, actin 
+HANETA applications, it is very concise. 
+</p> 
+
+<p> 
+The "<code> self </code> the assignment", I give an error to be checked 
+I think. This is a "method outside <code> return </code>" than the grammar is negative 
+Much easier, but simply a negative parser <code> "parse error" </code> the output 
+Ends. It is from this 
+</p> 
+
+<pre class="screen"> 
+% Ruby-e 'self = 1' 
+- e: 1: Can't change the value of self 
+self = 1 
+       ^ 
+</pre> 
+
+<p> 
+An error that it is much kindness. 
+</p> 
+
+<p> 
+Of course, Chile and Kick "for this purpose" and would not necessarily say that. For example 
+"Methods outside <code> return </code>" to have, it is better to give an error 
+You can check think. The goal is not to overlap. 
+</p> 
+
+<p> 
+Now the problem is "purely semantic analysis" But, Ruby, this classification is true Oh 
+Marika. Typed language and type of analysis, but the major event, Ruby is a variable - 
+Protection so pointless. Come to the front instead of an expression of the value of the check. 
+</p> 
+
+<p> 
+With value, to be precise and to "assess the value and can be obtained." <code> return </code> and 
+<code> break </code> is no value in itself. Of course <code> return </code> to pass away, but where is the value, 
+<code> return </code> is written in a place with a value in itself is left. So, like the following 
+Expression is strange. 
+</p> 
+
+<pre class="emlist"> 
+i = return (1) 
+</pre> 
+
+<p> 
+These expressions were mistaken, or simply because Miss compile time 
+They play better. This value will be taken to make sure one of the functions, 
+<code> value_expr () </code> will be able to look at. 
+</p> 
+
+
+
+<h3> <code> value_expr () </code> </h3> 
+
+<p> 
+<code> value_expr () </code> the value (value) with <code> expr </code> that the function of checking. 
+</p> 
+
+<p class="caption"> ▼ <code> value_expr () </code> </p> 
+<pre class="longlist"> 
+4754 static int 
+4755 value_expr (node) 
+4756 NODE * node; 
+(4757 
+4758 while (node) ( 
+4759 switch (nd_type (node)) ( 
+4760 case NODE_CLASS: 
+4761 case NODE_MODULE: 
+4762 case NODE_DEFN: 
+4763 case NODE_DEFS: 
+4764 rb_warning ( "void value expression"); 
+4765 return Qfalse; 
+4766 
+4767 case NODE_RETURN: 
+4768 case NODE_BREAK: 
+4769 case NODE_NEXT: 
+4770 case NODE_REDO: 
+4771 case NODE_RETRY: 
+4772 yyerror ( "void value expression"); 
+4773 / * or "control never reach"? * / 
+4774 return Qfalse; 
+4775 
+4776 case NODE_BLOCK: 
+4777 while (node-&gt; nd_next) ( 
+4778 node = node-&gt; nd_next; 
+4779) 
+4780 node = node-&gt; nd_head; 
+4781 break; 
+: 4782 
+4783 case NODE_BEGIN: 
+4784 node = node-&gt; nd_body; 
+4785 break; 
+4786 
+4787 case NODE_IF: 
+4788 if (! Value_expr (node-&gt; nd_body)) return Qfalse; 
+4789 node = node-&gt; nd_else; 
+4790 break; 
+4791 
+4792 case NODE_AND: 
+4793 case NODE_OR: 
+4794 node = node-&gt; nd_2nd; 
+4795 break; 
+4796 
+4797 case NODE_NEWLINE: 
+4798 node = node-&gt; nd_next; 
+4799 break; 
+4800 
+4801 default: 
+4802 return Qtrue; 
+4803) 
+4804) 
+4805 
+4806 return Qtrue; 
+4807) 
+
+(parse.y) 
+</pre> 
+
+
+<h4> algorithm </h4> 
+
+<p> 
+Summary. The tree in order to lick it "absolutely has no value equation" of the spotted ATATTARA 
+With no known value at the time. <code> rb_warning () </code>, warning that <code> Qfalse </code> returns. Value of 
+Do not leave tree ceremony for a ride OWATTARA value. <code> Qtrue </code> returns. 
+</p> 
+
+<p> 
+Here, not necessarily the whole tree in a check should be aware that it is not. 
+For example <code> value_expr () </code> method to assume that argument to be called out. 
+It goes here. 
+</p> 
+
+<p class="caption"> ▼ <code> arg </code> value <code> value_expr () </code> check </p> 
+<pre class="longlist"> 
+1055 arg_value: arg 
+(1056 
+1057 value_expr ($ 1); 
+1058 $ $ = $ 1; 
+1059) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+This argument <code> $ 1 </code> in the nest is also called the method might be. And 
+However, the method of argument is already inside <code> value_expr () </code>, that should have been 
+So, you do not check again. 
+</p> 
+
+<p> 
+More generally on the bright side. Certain elements of grammar <code> A </code> was as the structure for all 
+Sung elements in the <code> value_expr () </code> to him if the element <code> A </code> to check 
+You will not. 
+</p> 
+
+<p> 
+For example, <code> if </code> How? Unconditionally, all the elements in the <code> value_expr () </code> to 
+Called as a handle? In conclusion it up, it does not work. Why 
+If that statement (that do not value) <code> if </code> The body is then supposed to be good value for both返さなく 
+. For example, if you like. 
+</p> 
+
+<pre class="emlist"> 
+def method 
+   if true 
+     return 1 
+   else 
+     return 2 
+   end 
+   Five 
+end 
+</pre> 
+
+<p> 
+This <code> if </code> statement of values is required. 
+But the value of such cases is necessary. 
+</p> 
+
+<pre class="emlist"> 
+def method (arg) 
+   tmp = if arg 
+         then 3 
+         else 98 
+         end 
+   tmp * tmp / 3.5 
+end 
+</pre> 
+
+<p> 
+So in this case, the entire assignment in the first when checking <code> if </code> statement also check 
+It must be like. That is <code> value_expr () </code>-<code> switch </code> statement, along with 
+It is not. 
+</p> 
+
+<h4> tail recursion removal </h4> 
+
+<p> 
+By the way, <code> value_expr () </code> and look at the whole pattern follows that saw frequent 
+And you know. 
+</p> 
+
+<pre class="emlist"> 
+while (node) ( 
+     switch (nd_type (node)) ( 
+       case NODE_XXXX: 
+         node = node-&gt; nd_xxxx; 
+         break; 
+          : 
+          : 
+     ) 
+) 
+</pre> 
+
+<p> 
+This expression would change the meaning of the same. 
+</p> 
+
+<pre class="emlist"> 
+return value_expr (node-&gt; nd_xxxx) 
+</pre> 
+
+<p> 
+In this way <code> return </code> recursion just before the code tail recursion, 
+At the end of reflexive say, but it is generally <code> goto </code> is known to be able to convert. 
+Optimization technique is commonly used. Scheme has reached the end of recursive language processing systems must be 
+Remove 
+And standards must be established. Lisp language is well-loop system instead of 
+Reflexive use. 
+</p> 
+
+<p> 
+I'd like to note, however, at the end of recursion is "<code> return </code> just before the call" only. 
+For instance <code> value_expr () </code>-<code> NODE_IF </code> to see 
+</p> 
+
+<pre class="emlist"> 
+if (! value_expr (node-&gt; nd_body)) return Qfalse; 
+node = node-&gt; nd_else; 
+break; 
+</pre> 
+
+<p> 
+And so is the first time that recursion. 
+<code> return </code> format and will use it, 
+</p> 
+
+<pre class="emlist"> 
+return value_expr (node-&gt; nd_body) &amp; &amp; value_expr (node-&gt; nd_else); 
+</pre> 
+
+<p> 
+And the left <code> value_expr () </code> is false if the right <code> value_expr () </code> and 
+Executed. This means that if the left <code> value_expr () </code> is <code> return </code> "just before" 
+Is not. Therefore it is not the end of recursion. 
+So <code> goto </code> can not be expanded. 
+</p> 
+
+
+
+Check <h3> value of the overall picture </h3> 
+
+<p> 
+Function to check the value of reading to a close. I think it is too early 
+Not all, for any other functions <code> value_expr () </code> the same honest way to make an honest 
+辿っnodes to check it, so completely insipid. But the overall picture 
+Want to understand the relationship graph only shows the function call to end 
+(Figure 7). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_callgraph.jpg" alt="(callgraph)"> <br> 
+Figure 7: validation function call graph 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> local variables </h2> 
+
+<h3> local variable definition </h3> 
+
+<p> 
+Ruby's definition of the types of variables and many pretty. 
+And the constant variable is the first class assignment that has been defined, 
+Global instance variable names of all the variables are defined and 
+You can think of, 
+(But a warning is out) suddenly without reference to the assignment. 
+</p> 
+
+<p> 
+The definition of local variables, and it is also like a different. Local variables, 
+Variable on the program appeared to be defined at the time. For example follows. 
+</p> 
+
+<pre class="emlist"> 
+lvar = nil 
+p lvar # defined in the 
+</pre> 
+
+<p> 
+In this case, the first line <code> lvar </code> assigned to that point, so I wrote <code> lvar </code> defined 
+That. Undefined in the following run-time exception <code> NameError </code> said. 
+</p> 
+
+<pre class="emlist"> 
+% Ruby lvar.rb 
+lvar.rb: 1: undefined local variable or method `lvar ' 
+for # <object:0x40163a9c> (NameError) 
+</object:0x40163a9c></pre> 
+
+<p> 
+<code> "local variable or method" </code> Why are there. Method calls 
+When the argument is omitted parentheses, so when there is no argument at the local variables 
+付かなくis divided. To solve it <code> ruby </code> is undefined local variables DP 
+Let's look at the call as a method to try. That method is NAKE 
+If the above error. 
+</p> 
+
+<p> 
+By the way, the assignment is defined by the "appearance", will actually be assigned 
+No longer be defined by it. Variable defined by the initial value is <code> nil </code>. 
+</p> 
+
+<pre class="emlist"> 
+if false 
+   lvar = "This is by no means the assignment does not run" 
+end 
+p lvar # nil and displayed 
+</pre> 
+
+<p> 
+Moreover, the assignment is defined as "appeared" and "when", 
+On the string before without reference to it. For example, the following cases: 
+That is not defined. 
+</p> 
+
+<pre class="emlist"> 
+p lvar # which is not defined! 
+lvar = nil # where it is emerging that…… 
+</pre> 
+
+<p> 
+"String up" Note that they want. Rating with a 
+There is no relationship. For example, following a number of course continue to assess the condition of expression, 
+Order to string <code> p </code> At the time of <code> lvar </code> not come to an assignment. 
+Therefore <code> NameError </code> said. 
+</p> 
+
+<pre class="emlist"> 
+p (lvar) if lvar = true 
+</pre> 
+
+<p> 
+So far, we know the local variables are very influenced by watching for it 
+. Assignment of string when it appeared that, in order to see defined. The 
+Based on information given, <code> ruby </code> in Perth at the time of the local variables 
+Natural and predictable. Because the order, such as the string is out of the parser 
+MATTARA not exist anymore. That's right, and in fact, <code> ruby </code>, parser 
+Local variables. 
+</p> 
+
+
+
+<h3> block local variables </h3> 
+
+<p> 
+ITERETABUROKKU declared to be the first time in local variables 
+Or block local variables and dynamic variable. 
+Block local variables in the language specification 
+Local variables and the same thing. But these two are implemented is different. 
+What's the difference or not, we take a look at the future. 
+</p> 
+
+
+
+<h3> data structure </h3> 
+
+<p> 
+Find a local variable table <code> struct local_vars </code> to start a conversation. 
+</p> 
+
+<p class="caption"> ▼ <code> struct local_vars </code> </p> 
+<pre class="longlist"> 
+5174 static struct local_vars ( 
+5175 ID * tbl; / * local variable names table * / 
+5176 int nofree; / * from being used outside * / 
+5177 int cnt; / * tbl array size * / 
+5178 int dlev; / * dyna_vars nesting levels * / 
+5179 struct RVarmap * dyna_vars; / * * block local variables / 
+5180 struct local_vars * prev; 
+5181) * lvtbl; 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> prev </code> name from a member of the <code> struct local_vars </code> linked list in the reverse direction 
+…… There is to be expected from the stack. Simultaneously declared in the global variable 
+<code> lvtbl </code> the end of the stack <code> local_vars </code> points. 
+</p> 
+
+<p> 
+Also <code> struct RVarmap </code> is <code> env.h </code> Definition, and the evaluator also used 
+Published structure. Block local variables used to store. 
+</p> 
+
+<p class="caption"> ▼ <code> struct RVarmap </code> </p> 
+<pre class="longlist"> 
+   52 struct RVarmap ( 
+   53 struct RBasic super; 
+   54 ID id; / * variable name * / 
+   55 VALUE val; / * The value * / 
+   56 struct RVarmap * next; 
+   57); 
+
+(env.h) 
+</pre> 
+
+
+<p> 
+Back to <code> struct RBasic </code> This is because there are objects of Ruby. 
+That is managed by GABEJIKOREKUTA. Also <code> next </code> member 
+So tied to the linked list. 
+</p> 
+
+<p> 
+The results of this observation, you'll also find information in addition to running both the image parser 
+The figure is shown in Figure 8 and the like. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_localvars.jpg" alt="(localvars)"> <br> 
+Figure 8: The local variables when running table image 
+</p> 
+
+
+
+<h3> local variable scope </h3> 
+
+<p> 
+<code> parse.y </code> view of the function name to the list and 
+<code> local_push () local_pop () local_cnt () </code> functions such as the line the見付? 
+Be. Have every reason to believe this is a bias for local variables. In addition, the names of <code> push pop </code> so bright 
+They stack. The first of these functions are being used to look for 
+Like. 
+</p> 
+
+<p class="caption"> ▼ <code> local_push () local_pop () </code> for example </p> 
+<pre class="longlist"> 
+1475 | kDEF fname 
+(1476 
+1477 $ <id> $ = cur_mid; 
+1478 cur_mid = $ 2; 
+1479 in_def + +;
+1480 local_push (0); 
+1481) 
+1482 f_arglist 
+1483 bodystmt 
+1484 kEND 
+(1485 
+1486 / * NOEX_PRIVATE for toplevel * / 
+1487 $ $ = NEW_DEFN ($ 2, $ 4, $ 5, 
+                                   class_nest? NOEX_PUBLIC: NOEX_PRIVATE); 
+1488 if (is_attrset_id ($ 2)) 
+                                   $ $ -&gt; nd_noex = NOEX_PUBLIC; 
+1489 fixpos ($ $, $ 4); 
+1490 local_pop (); 
+1491 in_def -; 
+1492 cur_mid = $ <id> 3; 
+1493) 
+
+(parse.y) 
+</id></id></pre> 
+
+
+<p> 
+<code> def </code> that is being used to discover. In addition to the class definitions and specific definition of class, especially 
+Definition to a different class. That is the end of the scope of local variables. 
+And look at how to use the method to define the beginning of <code> push </code> over the 
+The following places <code> pop </code>. It is still <code> local_ </code> cognizance of the local function is strange 
+It is almost certain that the number of relationships. Also <code> push </code> and <code> pop </code> until one 
+The scope of local variables can also be found. 
+</p> 
+
+<p> 
+In addition <code> local_cnt () </code> been looking for him. 
+</p> 
+
+<p class="caption"> ▼ <code> NEW_LASGN () </code> </p> 
+<pre class="longlist"> 
+  269 # define NEW_LASGN (v, val) rb_node_newnode (NODE_LASGN, v, val, local_cnt (v)) 
+
+(node.h) 
+</pre> 
+
+
+<p> 
+<code> node.h </code> be found. <code> parse.y </code> also using it may not be good 
+Do not bother to find out from different sets of files, the author also seems to be a last resort. 
+</p> 
+
+<p> 
+This <code> NEW_LASGN </code> new local assignment is an assignment that is a local variable 
+Nodes must be, and is using it and think about where the parameters 
+<code> v </code> argument is a local name. <code> val </code> is the right term value (representing the syntax tree). 
+</p> 
+
+<p> 
+More than considering the scope of local variables starting point <code> local_push () </code>, on the way 
+If there is a local variable assignment <code> local_cnt () </code> add local variables, Schou 
+Quit Group, <code> local_pop () </code>. The perfect scenario will float to 
+(Fig. 9). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_localtbl.jpg" alt="(localtbl)"> <br> 
+Figure 9: The local variable flow management 
+</p> 
+
+<p> 
+Function, let's look at the contents. 
+</p> 
+
+
+<h3> <code> push </code> and <code> pop </code> </h3> 
+
+<p class="caption"> ▼ <code> local_push () </code> </p> 
+<pre class="longlist"> 
+5183 static void 
+5184 local_push (top) 
+5185 int top; 
+(5186 
+5187 struct local_vars * local; 
+5188 
+5189 local = ALLOC (struct local_vars); 
+5190 local-&gt; prev = lvtbl; 
+5191 local-&gt; nofree = 0; 
+5192 local-&gt; cnt = 0; 
+5193 local-&gt; tbl = 0; 
+5194 local-&gt; dlev = 0; 
+5195 local-&gt; dyna_vars = ruby_dyna_vars; 
+5196 lvtbl = local; 
+5197 if (! Top) ( 
+5198 / * one table on the scope of variables to keep val * / 
+5199 rb_dvar_push (0, (VALUE) ruby_dyna_vars); 
+5200 ruby_dyna_vars-&gt; next = 0; 
+5201) 
+5202) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+But <code> struct local_vars </code> is used as a stack. 
+And <code> lvtbl </code> pointed tip of the stack that is understandable. 
+<code> rb_dvar_push () </code> KUDARI to read it later, so keep in the meantime. 
+</p> 
+
+<p> 
+Then <code> local_pop () </code> and <code> local_tbl () </code> together to look at. 
+</p> 
+
+<p class="caption"> ▼ <code> local_tbl local_pop </code> </p> 
+<pre class="longlist"> 
+5218 static ID * 
+5219 local_tbl () 
+(5220 
+5221 lvtbl-&gt; nofree = 1; 
+5222 return lvtbl-&gt; tbl; 
+5223) 
+
+5204 static void 
+5205 local_pop () 
+(5206 
+5207 struct local_vars * local = lvtbl-&gt; prev; 
+5208 
+5209 if (lvtbl-&gt; tbl) ( 
+5210 if (! Lvtbl-&gt; nofree) free (lvtbl-&gt; tbl); 
+5211 else lvtbl-&gt; tbl [0] = lvtbl-&gt; cnt; 
+5212) 
+5213 ruby_dyna_vars = lvtbl-&gt; dyna_vars; 
+5214 free (lvtbl); 
+5215 lvtbl = local; 
+5216) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> local_tbl () </code> I want to see. This is the current local variables table (<code> lvtbl </code>) 
+To get the functions. When you call it, the current table <code> nofree </code> is true. 
+<code> nofree </code> natural meaning of "<code> free () </code> to it". This means that Li 
+FARENSUKAUNTO things like, "This table is used to <code> free () </code> of the 
+IDE, "they say. In other words, <code> local_tbl () </code> also called not once 
+Pop the table when it is released, abandoned. For example, local variables, 
+I think that if no method would be. 
+</p> 
+
+<p> 
+But here, "necessary table" is <code> lvtbl-&gt; tbl </code> that. 
+As you can see <code> lvtbl </code> Pop and freed itself is in it. 
+In other words, the evaluator made <code> lvtbl-&gt; tbl </code>使うらしいonly. So 
+This <code> lvtbl-&gt; tbl </code> What is the structure or, if that is important 
+It. To add variables (like) function <code> local_cnt () </code> If you look at 
+Let's see. 
+</p> 
+
+<p> 
+Before it and, <code> lvtbl-&gt; tbl </code> 0 index <code> lvtbl-&gt; cnt </code> on 
+I remember that you want. 
+</p> 
+
+
+
+Add <h3> variable </h3> 
+
+<p> 
+Add a local variable (like) function <code> local_cnt () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> local_cnt () </code> </p> 
+<pre class="longlist"> 
+5246 static int 
+5247 local_cnt (id) 
+5248 ID id; 
+(5249 
+5250 int cnt, max; 
+5251 
+5252 if (id == 0) return lvtbl-&gt; cnt; 
+5253 
+5254 for (cnt = 1, max = lvtbl-&gt; cnt +1; cnt <max; cnt="" +="" +)="" (="" 5255="" if="" (lvtbl-=""> tbl [cnt] == id) return cnt-1; 
+5256) 
+5257 return local_append (id); 
+5258) 
+
+(parse.y) 
+</max;></pre> 
+
+
+<p> 
+<code> lvtbl-&gt; tbl </code> Scan and, <code> id </code> equal and we are looking for. And見付かった 
+I still <code> cnt-1 </code> return is not found when <code> local_append () </code> a 
+. <code> local_append () </code> is <code> append </code> said adding that much work at all 
+. In other words <code> local_cnt () </code> variable is not already registered in check if the 
+If not registered in the <code> local_append () </code> add the returns would be understandable. 
+</p> 
+
+<p> 
+This function return value is what they are? <code> lvtbl-&gt; tbl </code> name of the variable 
+Array, so variable names and "The index -1 (<code> cnt-1 </code>)" is one to one 
+Corresponding (Fig. 10). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_lvtbltbl.jpg" alt="(lvtbltbl)"> <br> 
+Figure 10: variable name and return the correspondence between 
+</p> 
+
+<p> 
+In addition, the return value is zero starting point to be calculated from that, perhaps local 
+Space is an array of variables. And the index to access it. 
+The returns would be possible. Otherwise, if the instance variables and constants 
+Variable from the first to name (<code> ID </code>) should do a key. 
+</p> 
+
+<p> 
+Why 0 to avoid the index (<code> cnt = 1 </code> from around the loop) are concerned about 
+Sometimes, there must be <code> local_pop () </code> Cart from the value. 
+
+</p><p> 
+That's from <code> local_append () </code>'s role is also looking at the contents understandable. Local 
+Registered variables and the variables "<code> lvtbl-&gt; tbl </code> index of -1" to return. 
+Following the confirmation. 
+</p> 
+
+<p class="caption"> ▼ <code> local_append () </code> </p> 
+<pre class="longlist"> 
+5225 static int 
+5226 local_append (id) 
+5227 ID id; 
+(5228 
+5229 if (lvtbl-&gt; tbl == 0) ( 
+5230 lvtbl-&gt; tbl = ALLOC_N (ID, 4); 
+5231 lvtbl-&gt; tbl [0] = 0; 
+5232 lvtbl-&gt; tbl [1] = '_'; 
+5233 lvtbl-&gt; tbl [2] = '~'; 
+5234 lvtbl-&gt; cnt = 2; 
+5235 if (id == '_') return 0; 
+5236 if (id == '~') return 1; 
+5237) 
+5238 else ( 
+5239 REALLOC_N (lvtbl-&gt; tbl, ID, lvtbl-&gt; cnt +2); 
+5240) 
+5241 
+5242 lvtbl-&gt; tbl [lvtbl-&gt; cnt +1] = id; 
+5243 return lvtbl-&gt; cnt + +; 
+5244) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+No doubt. <code> lvtbl-&gt; tbl </code> is the local name of an array of variables, 
+"The index -1" to return value (local variables ID), the source said. 
+</p> 
+
+<p> 
+Also noteworthy is <code> lvtbl-&gt; cnt </code> to increase that. <code> lvtbl-&gt; cnt </code> to increase 
+This code is not only easier, so I just code <code> lvtbl-&gt; cnt </code> of 
+To determine meaning. Now it has to do with what you mean, "added a new variable 
+When <code> lvtbl-&gt; cnt </code> 1 increase "That's why," <code> lvtbl-&gt; cnt </code> this Schou 
+The presence of a local group representing the number of variables. " 
+
+</p><p> 
+And last <code> tbl [1] </code> and <code> tbl [2] </code> I'll explain. This <code>'_'</code> and 
+<code>'~'</code> is, Ruby accustomed to expect, but you know, <code>$_</code> and <code>$~</code>. 
+Special variable. These two variables of the global variables and the apparent contrast with the low - 
+Cal's variables. And You'll also explicitly <code> Kernel # gets </code> and other methods 
+DE implicitly calling for it to happen, so the assignment, is always assigned region 
+You have to be. 
+</p> 
+
+
+
+<h3> local variables together </h3> 
+
+<p> 
+There are lots of variables local story, so once YAYAKOSHIKATTA MATOMEYOU. 
+</p> 
+
+<p> 
+First, local variables are unlike other variables <code> st_table </code> management does not look like that 
+It is a point. What do you say in it and is配列らしい. In addition, the scope 
+Unit into an array. 
+</p> 
+
+<p> 
+The arrangement is <code> lvtbl-&gt; tbl </code> that the index is 0 <code> local_pop () </code> set in 
+Of the project <code> lvtbl-&gt; cnt </code> namely local variables is going on. 1 index 
+The scope is defined in the local variable names are kept. Therefore 
+Figure 11 is the final figure would be like. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_tbl.jpg" alt="(tbl)"> <br> 
+Figure 11: variable name and return the correspondence between 
+</p> 
+
+
+
+<h3> block local variables </h3> 
+
+<p> 
+The remaining problem is <code> struct local_vars </code> member <code> dyna_vars </code>. That is blocked 
+Local variables. To do something you should have a function, I think the function name to the list眺 
+Because of it, also. <code> dyna_push () dyna_pop () dyna_in_block () </code> Correction 
+U function is dubious. And you can use it someone goes here. 
+</p> 
+
+<p class="caption"> ▼ <code> dyna_push dyna_pop </code> for example </p> 
+<pre class="longlist"> 
+1651 brace_block: '(' 
+(1652 
+1653 $ <vars> $ = dyna_push (); 
+1654) 
+1655 opt_block_var 
+1656 compstmt ')' 
+(1657 
+1658 $ $ = NEW_ITER ($ 3, 0, $ 4); 
+1659 fixpos ($ $, $ 4); 
+1660 dyna_pop ($ <vars> 2); 
+1661) 
+
+(parse.y) 
+</vars></vars></pre> 
+
+
+<p> 
+ITERETABUROKKU launch <code> push </code>, in the end <code> pop </code>. This is the block local variables 
+The process must be new. 
+
+</p><p> 
+Will look at the function. 
+</p> 
+
+<p class="caption"> ▼ <code> dyna_push () </code> </p> 
+<pre class="longlist"> 
+5331 static struct RVarmap * 
+5332 dyna_push () 
+(5333 
+5334 struct RVarmap * vars = ruby_dyna_vars; 
+5335 
+5336 rb_dvar_push (0, 0); 
+5337 lvtbl-&gt; dlev + +; 
+5338 return vars; 
+5339) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> lvtbl-&gt; dlev </code>, which is up to block a marked presence of local variables. 
+And <code> rb_dvar_push () </code> is said…… 
+</p> 
+
+<p class="caption"> ▼ <code> rb_dvar_push () </code> </p> 
+<pre class="longlist"> 
+  691 void 
+  692 rb_dvar_push (id, value) 
+  693 ID id; 
+  694 VALUE value; 
+  695 ( 
+  696 ruby_dyna_vars = new_dvar (id, value, ruby_dyna_vars); 
+  697) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Variable name <code> id </code>, the value <code> val </code> to a member of <code> struct RVarmap </code> generation, it glow 
+Bar - variable <code> ruby_dyna_vars </code> top of it. This is once again in the form of cons. 
+<code> dyna_push () </code>, <code> ruby_dyna_vars </code> to the evacuation because of the scope on 
+<code> ruby_dyna_vars </code> added as it could get. 
+</p> 
+
+<p> 
+And here, adding that <code> RVarmap </code> is <code> id </code> 0 value is a member. This is serious 
+Is a YARANAKATTA, <code> ruby </code>-<code> ID </code> as normal <code> rb_intern () </code> make is that as long 
+Absolute zero. So, this <code> RVarmap </code> is <code> NUL </code> and <code> NULL </code> like a sentry 
+(Sentinel) in the role I think. Given that the variables are 
+Has been added not to holders of variable (<code> RVarmap </code>) to add to the reasons can explain 
+Cognizance. 
+
+</p><p> 
+Then <code> dyna_pop () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> dyna_pop () </code> </p> 
+<pre class="longlist"> 
+5341 static void 
+5342 dyna_pop (vars) 
+5343 struct RVarmap * vars; 
+(5344 
+5345 lvtbl-&gt; dlev -; 
+5346 ruby_dyna_vars = vars; 
+5347) 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> lvtbl-&gt; dlev </code> to come back Monday to block variable scope is recorded. 
+Arguments with something like that, but look at the future together. 
+
+</p><p> 
+This is a block local variables were added. Local variables. 
+Says <code> local_cnt () </code>, or is not bad. So <code> dvar </code> and <code> dyna </code>, 
+<code> grep </code>まくっto him, such a code. 
+</p> 
+
+<p class="caption"> ▼ <code> assignable () </code> (part) </p> 
+<pre class="longlist"> 
+4599 static NODE * 
+4600 assignable (id, val) 
+4601 ID id; 
+4602 NODE * val; 
+(4603 
+                             : 
+4634 rb_dvar_push (id, Qnil); 
+4635 return NEW_DASGN_CURR (id, val); 
+
+(parse.y) 
+</pre> 
+
+
+<p> 
+<code> assignable () </code> node is assigned to make the system function, is quoted block them, 
+KUROKARU handling of variables. We just saw <code> rb_dvar_push () </code> in the new 
+And variable (<code> ruby_dyna_vars </code>) seem to be added. 
+</p> 
+
+
+
+<h3> the parser <code> ruby_dyna_vars </code> </h3> 
+
+<p> 
+Now, taking into account more than the local Perth and one variable scope OWATTA 
+At the time <code> ruby_dyna_vars </code> to try to imagine the face. 
+</p> 
+
+<p> 
+First just said, adding that block the beginning of the scope <code> id = 0 </code> of 
+<code> RVarmap </code> to break the block representing the scope of the sentry. This 
+"<code> Ruby_dyna_vars </code> header" called to it. 
+</p> 
+
+<p> 
+Then, like I showed ITERETABUROKKU rules of Action 
+I want to pay attention to this part. 
+</p> 
+
+<pre class="emlist"> 
+$ <vars> $ = dyna_push (); / * $ <vars> $ you put in…… * / 
+         : 
+         : 
+dyna_pop ($ <vars> 2); / *…… $ <vars> 2 to come out * / 
+</vars></vars></vars></vars></pre> 
+
+<p> 
+<code> dyna_push () </code> is the <code> ruby_dyna_vars </code> returns. <code> dyna_pop () </code> is 
+Arguments <code> ruby_dyna_vars </code> to Cart. This means every block break 
+<code> ruby_dyna_vars </code> is saved by not returning. 
+It is following a program to Perth, 
+</p> 
+
+<pre class="emlist"> 
+iter ( 
+     a = nil 
+     iter ( 
+         b = nil 
+         iter ( 
+             c = nil 
+             Level 3 # nest 
+         ) 
+         bb = nil 
+         Level 2 # nest 
+         iter ( 
+             e = nil 
+         ) 
+     ) 
+     Level 1 # nest 
+) 
+</pre> 
+
+<p> 
+<code> ruby_dyna_vars </code> Figure 12 is supposed to be. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_syntree_dynavars.jpg" alt="(dynavars)"> <br> 
+Figure 12: the end of the scope Perth <code> ruby_dyna_vars </code> 
+</p> 
+
+<p> 
+This structure is pretty good. Where is the good and tell the level of nesting 
+During the entire list of deep辿っif on the nature and level of variables out of sight 
+This time. Each level from this table to make it in the search process 
+Pretty simple. 
+</p> 
+
+<p> 
+The painting is <code> bb </code> is giving away suspensory seem, this is rightness 
+. There is an increase in nesting level dropped after見付かったらvariable is the original level 
+The link, since it is bound to continue. And rather than having to "sign on the column 
+At present the only variable is not defined, "a local version of a natural variable 
+Form of expression. 
+</p> 
+
+<p> 
+And finally, (rather than block local variables) local variable scope 
+Break this link in the whole <code> lvtbl-&gt; dyna_vars </code> stored in the back. 
+A little back <code> local_push () </code> and <code> local_pop () </code> I'd like to confirm that. 
+
+</p><p> 
+By the way, so painstakingly created <code> ruby_dyna_vars </code> list, but it itself is 
+Reviews are not used to be. Check this list of variables exist to be used alone, 
+Perth by the end of the GC. Evaluator and again since the beginning of another 
+To make the chain in the world. It requires a lot of reasons for that deep, but the…… 
+The third part is once-per-view to it. 
+
+</p><hr>
+<p>
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp; additions,&nbsp; and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+</p>
+
+
+</restbits)></pre></node_lshift))></pre></fl_ushift)></pre></fl_ushift)></pre>
+
+</div>
+
