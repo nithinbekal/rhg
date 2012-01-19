@@ -1,0 +1,2781 @@
+
+<div>
+
+<h1>Ruby language Details</h1>
+<p> 
+This chapter will concern itself with a broad overview of the Ruby Language.&nbsp;&nbsp; It is not
+meant to be a detailed explanation.&nbsp;&nbsp; If the reader is already familiar with the Ruby,&nbsp; 
+this chapter may be skipped. 
+</p> 
+<p> 
+For a more detailed discussion of the language,&nbsp;  get a copy of&nbsp; <b>Programming Ruby&nbsp; </b>by&nbsp; <b> Dave Thomas</b>.&nbsp;&nbsp; There are also many free sources of information available on the Web. 
+</p> 
+
+
+
+
+<h2>Literals</h2>
+<p> 
+The use of <i>literals</i>&nbsp; gives Ruby much of it's expressive power.&nbsp;&nbsp; While a single literals are powerful,&nbsp; it is the ability to assemble complicated literals that sets Ruby apart.&nbsp;&nbsp; In the coming sections we will discuss a wide variety of literal types.&nbsp;&nbsp; </p>
+<p>
+The following are some examples of literal expressions:
+</p> 
+<pre class="graylist">String Literal:     s = "text string"
+Array Literal:      a = [1, "tmp", 30]
+Hash Literal:       h = {'cello' =&gt; 'string'. 'horn' =&gt; 'brass'}
+Symbol Literal:     s = :name
+Numeric Literal:    n = 3.0
+RegExp Literal:     /pattern/
+</pre>
+
+
+
+
+
+<h3>Character strings</h3>
+<p> 
+We group of sections will discuss character strings and regular expressions.&nbsp;&nbsp; Literals are often used to initialize strings and create regular expressions.&nbsp;&nbsp; These features are used extensively within Ruby.
+</p> 
+
+
+<h4>Single quoted character strings</h4>
+<p> 
+Single quoted strings only allow two substitutions.&nbsp;&nbsp; Two backslashes,&nbsp; ' \ \',&nbsp;  are replaced by a single backslash.&nbsp;&nbsp; A backslash followed by a single quote is interpreted as a <i>literal single quote</i>,&nbsp; that is,&nbsp;  just as a character.
+</p> 
+<pre class="graylist">'string'         # "string"     - Simple text
+'\\new doc'      # "\new doc"   - Literal backslash followed by text
+'\n'             # "\n"         - literal '\n' not a newline!
+'\''             # "'"          - A string consisting of a single quote
+</pre>
+
+
+
+<p> 
+One of the features of string literals, some say a quirk,&nbsp; is that carriage returns do not break a literal string.&nbsp;&nbsp; That is,&nbsp; the carriage returned is part of the string.&nbsp;&nbsp;
+</p>
+<pre class="graylist">'Multi
+     Line
+String'           # String = "Multi\n   Line\nString"
+</pre>
+
+
+<p> 
+---Translation Here about Multi-byte Character Strings --------
+ 
+</p> 
+
+
+<h4>Double quote character strings</h4>
+<p> 
+Double quoted strings provide more character processing when building the literal.&nbsp;&nbsp; First,&nbsp;  it provides for substations for character groups starting with a <i>backslash.</i>&nbsp;&nbsp; Second,&nbsp; it allows for  expression interpolation within the string body.
+</p> 
+<p> 
+The following is a list backslash substitutions supported by double quoted strings: 
+</p> 
+
+<pre class="graylist">\t        tab  - (0x09) 
+\n        newline  - (0x0a) 
+\r        carriage return  - (0x0d) 
+\f        form feed  - (0x0c) 
+\b        backspace  - (0x08) 
+\a        bell  - (0x07) 
+\e        escape  - (0x1b) 
+\s        whitespace  - (0x20) 
+\nnn      character in octal value nnn 
+\xnn      character in hexadecimal value nn 
+\cx       control x 
+\C-x      control x 
+\M-x      meta(alt) x  
+\M-\C-x   meta(alt) control x
+\x        character x itself 
+</pre>
+
+
+
+
+<p> 
+One of the powerful features of double quoted string literals is the ability to embed expression interpolation into the string body.&nbsp; Within the a string, the sequence <i>#{expression}</i>&nbsp; is replaced by the value of that <i>expression.</i>
+</p> 
+<pre class="graylist">lvar = 2  
+@ivar = 3
+
+def md(arg) ... end        # md(1) returns "Hello" 
+                           # md(2) returns ""
+
+a = "text #{lvar}"         # "text 2"
+b = "text #{@ivar}"        # "text 3"
+c = "text #{1 + @ivar}"    # "text 4
+d = "#{md(1)}, World!"     # "Hello, World!"
+e = "#{md(2)}abcd""        # "abcd"
+f = "#{"Nested"} String"   # "Nested String 
+</pre>
+
+<p> 
+One Ruby short-cut is that when the expression is simply a <i>global,&nbsp; instance,</i>&nbsp; or <i>class variable</i>,&nbsp; the braces can be dispensed with. &nbsp;&nbsp; However, local variables <i>must be</i>&nbsp; parenthesized or the result will be just the insertion of the literal&nbsp;  '#&lt;local&gt;'.
+</p> 
+<pre class="graylist">a = "text #@ivar"          # "text 3"
+
+b = "text #lvar"           # "text #lvar"  -- Local Variable must be
+                                              parenthesized (Next Line) 
+c = "text #{lvar}"         # "text 2"
+</pre>
+
+
+<h4>Delimited character strings</h4>
+<p> 
+There are five basic forms of delimited string literals. 
+</p> 
+<pre class="greenlist">1.  %q        Single-quoted string
+2.  %Q        Double-quoted string
+3.  %         Double-quoted string
+4.  %w        Array of Strings (Single-quote processing)
+5   %W        Array of Strings (Double-quote processing)
+</pre>
+<p> 
+All of these forms consist a ' %'&nbsp; sign followed by a classification  character,&nbsp; with the exception of item 3.&nbsp;&nbsp; A bare ' %'&nbsp; is treated the same as a ' %Q'
+</p> 
+<p> 
+The first character following one these forms becomes the <i>delimiter</i>&nbsp; for the string.&nbsp;&nbsp; The delimiting character can be any <i>non-alphanumeric</i>&nbsp; or <i>non-mulitbyte</i>&nbsp; character.&nbsp;&nbsp; Except for the four(4) paired <i>bracketing</i>&nbsp; characters&nbsp; ' ( [ { &lt;',&nbsp; the delimiting character is also used to terminate the string literal.&nbsp;&nbsp; In the case of the characters&nbsp; ' ( [ { &lt;',&nbsp; the closing delimiter must be the  closing <i>bracketing</i>&nbsp; character &nbsp; ' ) ] } &gt;'&nbsp; that matches the opening delimiter.&nbsp;&nbsp;  </p> 
+ 
+<p> 
+The examples below are for table item 1 shown above.&nbsp;&nbsp; Items four and five, array of strings processing,&nbsp;  will be discussed separately.
+</p> 
+<pre class="graylist">%q(--text--)               # "--text--"
+%q#--text--#               # "--text--"
+
+%q2--text--2               # Error:  unknown type of %string
+%qz--text--z               # Error:  unknown type of %string
+</pre>
+<p> 
+The valid use of&nbsp; ' # '&nbsp; may be a surprise.&nbsp;&nbsp; This is an exception to the rule that&nbsp; ' # '&nbsp; character starts a comment.&nbsp;&nbsp; This is because since it is accepted as a delmiter,&nbsp; the parser will not look for comments until the matching character is found that terminates  the string liberal. 
+</p> 
+<p> 
+The <i>type</i>&nbsp; character&nbsp; ' Q '&nbsp; and the bare ' %'&nbsp; sign indicate double quote processing.&nbsp;&nbsp; These are listed as item  2 and 3 in the table above.
+</p> 
+<pre class="graylist">%Q(\ttext)                 # "&lt;tab&gt;text"
+%Q#--text--#                # "--text--"
+
+%(text \010here)            # "texthere"
+
+a = "one"
+b = "two"
+%|#{a + b}three|            # "onetwothere"
+</pre>
+
+
+<p> 
+The items 4 and 5&nbsp; from the table above are for processing an array of strings.&nbsp;&nbsp; These forms are a short cut for generating lists of strings.&nbsp;&nbsp; For example,&nbsp; the normal method to create a list of animals is as follows: 
+</p> 
+<pre class="graylist">arr = ['cat', 'dog', 'whale', 'tiger', 'great\ dane' ]
+</pre>
+<p> 
+Notice that this list is being created with single quote strings.&nbsp;&nbsp; As we have discussed before,&nbsp; the only processing performed is substitution of backslash quoted backslash,&nbsp; '\\',&nbsp;  and  a backslash quoted single quote,&nbsp; '&nbsp; \'&nbsp; '.&nbsp;&nbsp; 
+</p> 
+<p> 
+With item four,&nbsp; ' %w'&nbsp; an array of strings is created.&nbsp;&nbsp;However,&nbsp; since both&nbsp; ' %w' and&nbsp;' %W'&nbsp; parse a white-space delimited list,&nbsp; Ruby allows these constructions an additional processing option,&nbsp; a backslash quoted space,&nbsp; '&nbsp; '. &nbsp;&nbsp; The following example demonstrates this feature.
+</p> 
+<pre class="graylist">arr = %w(cat dog whale tiger great\ dane)
+
+printf("%s\n", arr[4])          # "great dane"
+</pre>
+
+
+
+<p> 
+One of the benefits is that since delimited input is that you can chose the delimited character.&nbsp;&nbsp; You must, at times, create string literals that contain many characters that are normally standard delimiters.&nbsp;&nbsp; These most often include, single and double quotes, and slashes.&nbsp;&nbsp; By choosing the right delimiter the literal is much easier to create.
+</p> 
+<pre class="graylist">list1 = "The quote was \"test the waters\" and \" to be sure\""
+
+list1 = %q(The quote was "test the waters" and " to be sure")
+</pre>
+
+
+
+
+<h4>Here Document</h4>
+<p> 
+The <i>here document</i>&nbsp; is yet another way to create strings without having to resort to quoting functions.&nbsp;&nbsp; A here document starts with initial character string,&nbsp;  either &nbsp; ' &lt;&lt; '&nbsp; or&nbsp; ' &lt;&lt;-'.&nbsp;&nbsp; Immediately after the initial starting string,&nbsp; the following characters until terminated by white-space or a carriage return,&nbsp; will constitute the terminating character string.&nbsp;&nbsp; The following example produces strings with the same contents:
+</p>
+<pre class="graylist">str1 = &lt;&lt; EOS       
+  test line 1
+test line 2
+  test line 3
+EOS
+#
+printf("%s\n", str1)
+#
+str2 = "  test line 1
+test line 2
+  test line 3
+"
+#
+printf("%s", str2)
+</pre>
+<p> 
+The result of the program fragment above is as follows: 
+</p> 
+<pre class="graylist">  test line 1
+test line 2
+  test line 3
+
+  test line 1
+test line 2
+  test line 3
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Letter</h3>
+<p> 
+A letter in a string can is equivalent to the integer value stored the that character position,&nbsp; at least if it not a multi-byte character.&nbsp;&nbsp; There are several ways to store non-printing characters in a string location.
+</p> 
+<pre class="graylist">C1 = "\n"                 # By a standard backslash code
+C2 = "\C-j"               # By the equivalent Control Code
+#
+p "C1 = #{C1.to_s}"
+p "C2 = #{C2.to_s}"
+</pre>
+<p>
+The result is:
+</p>
+<pre class="graylist">"C1 = \n"
+"C2 = \n"
+</pre>
+
+
+
+
+
+
+<h3>Regular expression</h3>
+<p>
+A <i>Regular Expression</i>&nbsp; in Ruby is delimited by forward slashes.
+</p>
+<pre class="graylist">/regular expression/
+</pre>
+<p> 
+A Regular Expression literals are a object of type <i>Regexp.</i>&nbsp;&nbsp; They can be created in the following ways,&nbsp; either with or without an option specification. 
+</p> 
+<pre class="greenlist">1.  /pattern/              
+2.  /pattern/i 
+3.  %r{pattern}
+4.  %r{pattern}i
+5.  Regexp.new('pattern'))
+6.  Regexp.new('pattern', 'i' )
+</pre>
+Ignoring for the moment what patterns consist of,&nbsp; the processing of such patterns can be modified by appending an option.&nbsp;&nbsp; Some of these options are:
+<pre class="graylist"> i  - Case Insensitive
+ m  - Multiline Mode
+ x  - Extended Mode
+</pre>
+
+
+
+
+
+
+<p> 
+<i>Regexp</i> is an abbreviation of <i>Regular Expression</i> and will be used interchangeably with it.
+</p> 
+<p> 
+The thing to remember about Regexp is that <i>it is a language</i>&nbsp; with exacting rules.&nbsp;&nbsp; However,&nbsp; Regexp is a powerful tool for parsing strings in a wide variety of circumstances.&nbsp;&nbsp; It is a subject that every programmer should be familiar with.
+</p> 
+<p> 
+Let us start with a simple Regexp,&nbsp; matching it with  a text string.&nbsp;&nbsp; If there is only text and no Regular Expression operators,&nbsp; the Regexp will match any string that contains the text specified in the Regular Expression  embedded within it.&nbsp;&nbsp; In this and following examples the&nbsp; ' =~'&nbsp; operator compares a Regexp with a normal string and returns <i>true</i> if the Regexp matches a portion of text within the string.
+</p> 
+<pre class="graylist">/abc/  =~ 'zxyabcdef'     # Returns TRUE
+/ABC/  =~ 'zxyabcdef'     # Returns FALSE
+/ABC/i =~ 'zxyabcdef'     # Returns TRUE
+</pre>
+
+
+
+
+<p>
+The next examples are using the Regexp operators &nbsp;' ^',&nbsp; &nbsp;' $'&nbsp; .&nbsp;&nbsp; These operators match the <i>beginning of the line</i>&nbsp; and <i>End of the line</i>&nbsp; respectfully.&nbsp;&nbsp; These operators are called <i>Anchors</i>.&nbsp;&nbsp; They only match text that is immediately adjacent the beginning or end of a line.
+</p>
+<pre class="graylist">/^From:/ =~ "From: jack"    # Returns TRUE
+/^ To:/  =~ "To: jill"     # Returns FALSE
+
+/end$/   =~ "to the end"    # Returns TRUE
+/end$/   =~ "to an end!"    # Returns False
+</pre>
+<p> 
+The language of Regular Expressions are made up characters that represent themselves and characters the are <i>Regular Expression Operaters</i>.&nbsp;&nbsp; The following are these operators: 
+</p> 
+<pre class="graylist">These characters are used to form Regular Expressions Operators:
+
+.&nbsp;  &nbsp; --period
+|&nbsp;  &nbsp; --Bar
+(&nbsp; )&nbsp; --Open/Close Parenthesis 
+[&nbsp; ]&nbsp; --Open/Close Brackets 
+{&nbsp; }&nbsp; --Open/Close Braces
++&nbsp;  &nbsp; --Plus
+\&nbsp;  &nbsp; --Backslash
+^&nbsp;  &nbsp; --circumflex 
+$&nbsp;  &nbsp; --Currency Sign
+*&nbsp;  &nbsp; --Asterisk
+?&nbsp;  &nbsp; --Question Mark
+</pre>
+<p> 
+Some these characters stand by themselves,&nbsp; such as &nbsp;' .'&nbsp; which represents any character except end of line.&nbsp;&nbsp; Note:&nbsp; there is an exception to even this simple operator if single line mode is on!
+</p>
+<p> 
+Other operators introduce whole classes of additional operators.&nbsp;&nbsp; Backslash is such an operator that not only quotes operator characters so the represent themselves,&nbsp; but also represents character classes. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+<h4><code>%</code>&nbsp; Regular expression</h4>
+<p>
+The study Regular Expressions is beyond the scope of this document.&nbsp;&nbsp; Whole books written on the subject.&nbsp;&nbsp; So far we have shown examples of creating Regexp literals by enclosing them within slashs.&nbsp;&nbsp; We have also shown how compare Regexp and strings with the &nbsp;' =~'&nbsp; Operator.&nbsp;&nbsp; The following shows two other methods for creating Regular Expressions.
+</p>
+<p> 
+Regular Expressions also have a delimited input form,&nbsp;' %r'.&nbsp;&nbsp; For the same reasons that other delimited forms were convenient,&nbsp; the ability to create Regular Expressions without having to quote special characters works well for these expressions.. 
+</p> 
+<pre class="graylist">%r{^From:} =~ "From: jack"    # Returns TRUE
+%r{^ To:}  =~ "To: jill"      # Returns FALSE
+%r{
+%r{end$}   =~ "to the end"    # Returns TRUE
+%r{end$}   =~ "to an end!"    # Returns False
+</pre>
+
+
+
+<h4>Regular expression Objects</h4>
+<p>
+Up to now we have used Regexp literals for comparisons,&nbsp; without specifying that we were actually creating objects of type <i>Regexp</i>.&nbsp;&nbsp; The following forms all create Regexp Objects:
+</p>
+<pre class="graylist">a = Regexp.new('\s+and\s+')      # Regexp that matches an "and" 
+                                 # surrounded by white-space
+b = /\s+and\s+/                  # -- same --
+c = %r{\s+and\s+}                # -- same --
+
+a =~ "jack and jill"             # Returns TRUE
+a =~ "sand dunes"                # Returns TRUE
+</pre>
+
+
+
+
+
+<h3>Array's</h3>
+<p> 
+Arrays are <i>sequential lists</i>&nbsp; of objects that can be stored,&nbsp;  modified, &nbsp; and returned by using a wide variety of ruby commands.&nbsp;&nbsp; Since Ruby employs &nbsp;"duck"&nbsp; typing,&nbsp; arrays may contain a collection of non-heterogeneous items.
+</p> 
+<p> 
+Array literals are created by enclosing a comma separated list of items between two brackets.&nbsp;&nbsp; These items may be literals, variables, constants, symbols, or expressions combining these elements.
+</p> 
+<pre class="graylist">[ 1, 2, 3 ]
+[ 'This', 'is', 'an', 'array', 'of' and 'string' ]
+
+[ /regexp/, {'hash'=&gt; 3} 4, 'string'?\C-a ]
+
+Lvar = $gvar = @ivar = @@cvar = nil
+[ Lvar, $gvar, @ivar and @@cvar ]
+
+[ Object.New (), Object.New (), Object.New () ]
+</pre>
+
+
+
+
+<p> 
+Arrays may also be created with the method <i>new</i>&nbsp; and loaded in various ways.&nbsp;&nbsp; One of the common ways is to create an empty array and <i>push</i>&nbsp; items onto the end of the array. 
+</p> 
+<p> 
+The following example demonstrates this concept,&nbsp; and additionally illustrates that each literal has a <i>different</i>&nbsp; object id. 
+</p> 
+<pre class="graylist">#!/usr/bin/ruby
+#
+i = 0
+a = Array.new()
+while i &lt; 5
+  a.push([1,2,3].id)         #The object ID is different for each pass 
+  printf("%d)  %d\n",i,a[i]) #Print formatted result
+  i = i + 1
+end
+
+#Result of program above:
+
+0)  91447254836
+1)  91447254776
+2)  91447254716
+3)  91447254656
+4)  91447254596
+</pre>
+
+
+<h4>Arrays of Strings</h4>
+<p> 
+One that standard uses of array's is to contain a list of words,&nbsp; in other words a array of strings.&nbsp;&nbsp; This happens often enough that Ruby provides two delimited constructions to handle assembling such arrays.&nbsp;&nbsp; </p> 
+ 
+<p> 
+The &nbsp;' %w'&nbsp;and&nbsp;' %W'&nbsp; forms convert space delimited lists of strings into arrays of strings.&nbsp;&nbsp; The lower case form uses single quote processing, with the addition of &nbsp;' \&lt;spc&gt;&gt; '&amp;&nbsp; processing.&nbsp;&nbsp; The upper case form,&nbsp;' %W',&nbsp; performs double quote processing on the individual strings!
+</p> 
+<pre class="graylist">%w(alpha beta gamma delta)  
+   # Returns ['alpha', 'beta', 'gamma', 'delta']
+
+%w&lt;month fire water wooden gold earth day&gt;
+   # Returns ['month', 'water', 'gold', 'earth', 'day']
+
+%w{Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec}
+   # Returns ['jan','Feb','Mar','Apr', ... ,'Sep','Oct','Nov','Dec']
+</pre>
+<p> 
+The &nbsp;' %W'&nbsp; uses double quote processing on the isolated strings.&nbsp;&nbsp; This means that expressions can be embedded within strings.&nbsp;&nbsp;  The following example shows the difference in the processing by the two forms.
+</p> 
+<pre class="graylist">n = 5
+%w (list0 list #{n})       # Returns [ 'list0', 'list #{n}' ]
+%W (list0 list #{n})       # Returns [ 'list0', 'list5' ]
+</pre>
+
+
+
+
+
+
+
+
+<h3>Hash</h3>
+<p> 
+A <i>Hash Table</i>&nbsp; is an indexed collection of data accessible by a <i>key.</i>&nbsp;&nbsp; Data stored in a Hash Table consists of a pair of values,&nbsp; a&nbsp; <i>Key</i>&nbsp; and a&nbsp;<i>value.</i>&nbsp;&nbsp; A Hash literal is constructed by enclosing in <i>braces</i>&nbsp; <i>Key/Value</i>&nbsp; pairs separated by commas.
+</p> 
+<pre class="graylist">{'key' =&gt; 'value', 'key2' =&gt; 'value2'}
+{3 =&gt; 0, 'string' =&gt; 5, [ 'array' ] =&gt; 9}
+{Object.New () =&gt; 3, Object.New () =&gt; 'string'}
+
+A Hash literal can also be created over multiple lines
+{0 =&gt; 0,
+ 1 =&gt; 3,
+ 2 =&gt; 6}
+</pre>
+<p> 
+You will find that Hash Tables are the most commonly used data structures in Ruby.&nbsp;&nbsp; Chapter 3,&nbsp; "Name and Name Charts",&nbsp; extensively documents Hash Table usage and construction.
+</p> 
+<p> 
+The Hash Table is the most efficient to implement lookup tables.&nbsp;&nbsp; As documented in the book,&nbsp; they are used extensively in the construction of the Ruby Language itself. 
+</p> 
+<p> 
+New entries can be added to a Hash Table using the &nbsp;' [ ]= '&nbsp; operator,&nbsp; and retrieved with the &nbsp;' [ ] '&nbsp; operator.&nbsp;&nbsp; In addition to using Literals to populate a new Hash Table, the <i>new</i>&nbsp; method can create an empty Hash Table.
+</p> 
+<pre class="graylist">h = Hash.new()
+h['key1'] = 'value1'
+h['key2'] = 'value2'     # h = {'key1' =&gt; 'value1', 'key2' =&gt; 'value2'}
+
+a = h['key2']            # a = 'value2'
+</pre>
+
+
+
+
+
+
+
+
+
+
+<h3>Range</h3>
+<p> 
+A Range literal is the oddball which did not come from another language.&nbsp;&nbsp; 
+Ranges are often seen as a way create indexes for arrays.&nbsp;&nbsp; When a Range is connected with two dots it includes the terminal value,&nbsp; if three dots the terminal value is not included in the Range.
+</p><pre class="graylist">0..5               # 0 up to 5 (Including 5)
+0...5              # 0 up to 5 (NOT including 5)
+1+2..9             # 3 up to 9 (Including 9)
+'a'..'z'           # 'a' thru 'z' (Including 'z')
+</pre>
+<p> 
+Ranges provide three separate features: sequences, conditions, and intervals. 
+</p>
+<pre class="greenlist">1. Sequences
+2. Conditions
+3. intervals
+</pre>
+<p> 
+<b>Sequences</b> generate a series of objects which can be used feedstock for a variety of uses.&nbsp;&nbsp; As stated above they can be used a index's.&nbsp;&nbsp; They can also create an array and populate it.
+</p>
+<pre class="graylist">(1..5).to_a        # a = [1,2,3,4,5]
+</pre>
+<p> 
+The following example uses a Range to provide indexes:
+</p> 
+<pre class="graylist">#!/usr/bin/ruby
+#
+a = 10             
+(1..5).each { |b|
+  puts a + b
+}
+</pre>
+<p>
+They can be used to create <b>conditionals</b>.&nbsp;&nbsp; The following program prints out all input lines between the time it sees a "start"&nbsp;  until it sees a "end"&nbsp; in the input stream.&nbsp;&nbsp; Notice that a Regular Expressions are used for testing the line contents.
+</p><p>
+</p><pre class="graylist"> 
+#!/usr/bin/ruby
+#
+while line = gets
+   puts line if line =~ /start/..line =~/end/
+end
+</pre>
+<p> 
+Finally,&nbsp; they can be used for providing <b>intervals.</b> 
+</p> 
+<pre class="graylist">(1..10) === 5      # Returns TRUE
+(1..10) === 15     # Returns FALSE
+
+('a'..'j') === 'e' # Returns TRUE
+('a'..'j') === 'm' # Returns FALSE
+</pre>
+<p> 
+Intervals are often seen is <i>case</i>&nbsp; statements: 
+</p> 
+<pre class="graylist">kind = case year
+     when 0..9 then "tens"
+     when 10..99 then "hundreds"
+     when 100..999 then "thousands"
+     else               "Out of Range"
+end
+</pre>
+
+
+
+
+
+
+
+
+
+<h3>Symbol</h3>
+<p> 
+<i>Symbols</i>&nbsp; are an alternative to constants for creating names with unique values.&nbsp;&nbsp; Often you wish to create a set of constants,&nbsp;  lets say the main points of a compass:&nbsp; North,&nbsp; East,&nbsp; South,&nbsp; and West.&nbsp;&nbsp; The program does not care what the value is,&nbsp; as long as it is unique.
+</p> 
+<pre class="graylist">#!/usr/bin/ruby
+#
+def walk(dir)
+  case dir
+    when :North
+       puts "North Pasture"
+    when :east
+       puts "Homestead"
+    when :South
+       puts "ocean"
+    when :West
+       puts "city"
+    else
+       puts "unkown"
+  end
+end
+#
+   puts "Show Direction:"
+   walk(:North)
+   puts "Show Direction"
+   walk(:South)
+   puts "Done"
+</pre>
+<p>
+Hash keys are often symbols.&nbsp;&nbsp; This ensures that the keys are unique.&nbsp;&nbsp;  Why?&nbsp;&nbsp; By definition <i>Symbols always have unique values</i>&nbsp; and are guaranteed to be the same value through out the program.
+</p> 
+<pre class="graylist">h = { :North =&gt; "NORTH", :South =&gt; "SOUTH" }
+</pre>
+<p> 
+An Important aspect of symbols and strings is that they can be converted to each other.&nbsp;&nbsp; This does not imply that symbols and strings are always replaceable with each other,&nbsp; but they can substitute for each other in some cases.&nbsp;&nbsp; For example a <i>catch</i>&nbsp; block specification may be a string or a symbol:
+</p> 
+<pre class="graylist">#!/usr/bin/ruby
+#
+catch ("done") do                    # done is a string
+  for num in (1..6)
+    throw "done" if num == 4
+    puts num
+  end
+    puts "DONE"
+end
+puts "After catch block"
+
+  ------------------------
+
+#!/usr/bin/ruby
+#
+catch (:done) do                     # done is a symbol
+  for num in (1..6)
+    throw :done if num == 4
+    puts num
+  end
+    puts "DONE"
+end
+puts "After catch block"
+</pre>
+<p> 
+Another place symbols are used is to specify names for <i>attr_reader</i> and <i>attr_writer</i>.&nbsp;&nbsp; In the example below we replace long winded structure with the more compact attr_reader version. 
+</p> 
+<pre class="graylist">class getdata                    # Long winded way
+  def name
+    @name
+  end
+  def age
+    @age
+  end
+  def initialize(name, age)
+    @name = name
+    @age  = age
+  end
+end
+
+class Getdata                    # With attr_reader form
+  attr_reader :name, :age
+
+  def initialize(name, age)
+    @name = name
+    @age  = age
+  end
+end
+
+#Both classes are initialized the same way
+
+ga = Getdata.new("john", "55")
+
+#Both load variables of the same names
+#Both produce the same output!
+
+puts "Name = #{ga.name} -- Age = #{ga.age}"
+
+Result:  Name = john -- Age = 55
+
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Numerical value</h3>
+<p> 
+Numerical values come in three basic flavors:&nbsp; Fixnum,&nbsp; Bignum,&nbsp; and Floats.&nbsp;&nbsp; Both Fixnum and Bignum store fixed point numbers. However, the Fixnum stores numbers as a binary word and that limits it size either 31 or 63 bits, depending on the word size of the processor.&nbsp;&nbsp; Numbers larger than this size are stored as Bignum, which stores the number as a series of integers.&nbsp;&nbsp; The only limit is the size of the available memory for Ruby. 
+</p> 
+<pre class="graylist">Decimal Numbers:
+
+Fixnum: 2
+Fixnum: ::
+Fixnum: 65536
+Fixnum: 4294967296
+Bignum: 18446744073709551616  # Exceed size of Fixnum
+
+123_199_001        # Underbars are ignored in decimal numbers
+
+Floats:
+
+float: 12.34       # 12.34
+float: -0.1234e2   # -12.34
+float: 1234e-2     # 12.34
+</pre>
+
+
+
+
+<h2>Method</h2>
+<p> 
+<i>Methods</i> are the workhorses of Ruby.&nbsp;&nbsp; If defined at the top level they become functional methods.&nbsp;&nbsp; That is,&nbsp;  a method not bound to class.&nbsp;&nbsp; All other methods are defined within the class definition,&nbsp; and used to implement class functions.
+</p> 
+
+
+
+<h3>Definition call</h3>
+<p> 
+A method is created by <i>def</i>&nbsp; statement.&nbsp;&nbsp; It consists of the reserved word,&nbsp; def,&nbsp; followed by the name of the method.&nbsp;&nbsp; The name is followed by the method parameters.&nbsp;&nbsp; These may be enclosed with parenthesis,&nbsp; but that is optional.
+</p> 
+<p> 
+The following demonstrates both kinds of methods in a working program: 
+</p> 
+
+<pre class="graylist">#!/usr/bin/ruby
+#
+def fun1(arg)
+  puts "fun1 = #{arg}"
+end
+
+class C
+  def initialize
+    puts "Initialized!"
+  end
+  def method1(arg)
+    puts "method1 = #{arg}"
+  end
+end
+#
+fun1(11)           # No class prefix required (Top-Level method)
+c = C.new()        # Create instance of Class 'C'
+c.method1(99)      # Execute it method!
+
+Results:
+fun1 = 11
+Initialized!
+method1 = 99
+
+</pre>
+
+<p> 
+
+
+
+
+
+</p><h3>Value of method</h3>
+<p> 
+The <i>value</i>&nbsp; returned by a method is the last value evaluated by the method.&nbsp;&nbsp; If a return statement is used,&nbsp; it's argument is the last value evaluated.&nbsp;&nbsp; It is stating the obvious,&nbsp; that <i>all methods return a value.</i>
+</p> 
+<pre class="graylist">def rone()
+  return 1
+  999
+end
+#
+def rboth(arg)
+  if arg == 2
+    return 2
+  else
+    999
+  end
+end
+#
+puts rone()
+puts rboth(2)
+puts rboth(1)
+
+Results:
+1
+2
+999
+</pre>
+
+
+
+
+
+
+
+<h3>Abbreviation possible argument</h3>
+<p> 
+Ruby makes it possible to define default arguments for methods.&nbsp;&nbsp; Without this feature,&nbsp; the following program would produce errors for <i>dtest</i>&nbsp; and <i>dtest()</i>. 
+</p> 
+<pre class="graylist">def dtest(arg1=nil)
+  if !arg1
+    puts "Nil Arg"
+  else
+    puts "#{arg1}"
+  end
+end
+
+dtest
+dtest()
+dtest(23)
+
+Results:
+
+Nil Arg
+Nil Arg
+23
+</pre>
+<p> 
+However,&nbsp; there is a rule the affects where default values may be used.&nbsp;&nbsp; Default arguments must always follow arguments without defaults.&nbsp;&nbsp; In particular,&nbsp; you can not place defaulted arguments in the middle defaulted arguments.
+</p> 
+<p> 
+The following produces a syntax error when run.
+</p> 
+
+<pre class="graylist">def wrong_decl (arg1, arg2 = nil and arg3)
+  puts " #{arg2}"
+end
+</pre>
+
+
+
+
+
+
+
+<h3>Abbreviation of argument parenthesis</h3>
+<p> 
+While parenthesis are certainly allowed in statements and expressions,&nbsp; Ruby in many cases does not required the syntax queues that many other languages require.&nbsp;&nbsp; If parenthesis are not required to parse a statement,&nbsp; they are optional.
+</p> 
+<pre class="graylist">puts 'Hello, World!'      # Instead of:  puts('Hello, World!')
+obj = Object.new          # Instead of:  obj = Object.new()  
+</pre>
+<p> 
+As of Ruby 1.8.6  some of optional parenthesis were scheduled to be enforced future versions of Ruby.&nbsp;&nbsp; The following is an example of where this enforcement was rescinded in Ruby 1.9. 
+</p> 
+<pre class="graylist">#!./ruby
+fname = "~/Bin/zznumb"
+puts(File.basename(fname))           # zz:4
+puts(File.basename fname)            # zz:5
+puts File.basename fname
+
+Results 1.8.6:
+./zz:4: warning: parenthesize argument(s) for future version
+./zz:5: warning: parenthesize argument(s) for future version
+zznumb
+zznumb
+zznumb
+
+Results 1.9.0:
+zznumb
+zznumb
+zznumb
+</pre>
+<p> 
+Another example of optional parenthesis is the definition and calling of methods.&nbsp;&nbsp; Methods may have many parameters or none and parenthesis are still optional in many cases: 
+</p> 
+<pre class="graylist">def method1 p1, p2, p3
+  printf("P1: %s  P2: %s  P3: %s\n", p1,p2,p3)
+end
+def method2                     # No paramters
+  puts "No parameters"
+end
+
+method1 "good", "bad", "ugly"
+method2
+
+Results:
+P1: good  P2: bad  P3: ugly
+No parameters
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+<h3>Variable Length Arguments</h3>
+<p> 
+The may be times when a method be called with a unknown number of arguments.&nbsp;&nbsp; Ruby supports variable length argument lists.&nbsp;&nbsp; A variable length argument is made up of two parts.&nbsp;&nbsp; First, zero to n number of fixed argument specifications,&nbsp; followed parameter prefixed with a asterisk. 
+</p> 
+<p> 
+The fixed arguments must be present,&nbsp; and not defaulted.&nbsp;&nbsp; Any arguments beyond the fixed items are collected into an array and passed in last argument (i.e. *arg). 
+</p> 
+<pre class="graylist">def varg(arg1, *rest)
+  p "#arg1-#{arg1},  rest=#{rest.inspect}"
+end
+
+varg("one")
+varg("one", "two")
+varg("one", "two", "three)
+
+Results:
+"arg1-one,  rest=[]"
+"arg1-one,  rest=[\"two\"]"
+"arg1-one,  rest=[\"two\", \"three\"]"
+</pre>
+
+<h3>Splat! Expanding collection arguments</h3>
+<p> 
+The previous section created variable length argument lists using the asterisk prefix.&nbsp;&nbsp; This section shows another use of the asterisk prefix.&nbsp;&nbsp; The asterisk is often refereed to as <i>splat</i>,&nbsp; due to the fact the an asterisk looks somewhat like a bug that hit a windshield!
+</p>
+<p> 
+You can convert any collection or enumerable object into its individual items and pass those 
+</p> 
+
+<pre class="graylist">def do_job(a, b, c)
+  p(a, b, c)
+end
+
+list = [ 1, 2, 3 ]
+do_job(*list) 
+
+results:
+1
+2
+3
+</pre>
+<p> 
+It is also possible to transfer arguments in this manner through more than one level. The following example extends the previous code.
+</p> 
+<pre class="graylist">def get_job(*args)
+  do_job(*args)
+end
+
+get_job(*list)
+
+results:             # do_job generates same result!
+1
+2
+3
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Various Method call types</h3>
+<p> 
+Since almost no exception,&nbsp; all expressions in Ruby are essentially <i>method calls</i>.&nbsp;&nbsp; The presence of "syntactic sugar" sometimes masks this truth.&nbsp;&nbsp; The following are method calls!
+</p> 
+<pre class="graylist">1 + 2                  # 1.+(2) 
+a == b                 # a.==(b)
+-/regexp/              # /regexp/.-
+obj.attr = val         # obj.attr=(val)
+obj[i]                 # obj.[](i)
+obj[k] = v             # obj.[]=(k, v)
+</pre>
+<p> 
+It takes some time to become accustomed to the object oriented constructions underlying the Ruby syntax.&nbsp;&nbsp; For example,&nbsp; "1 + 2" is actually:&nbsp; Object '1',&nbsp; receiving  method '+',&nbsp; with argument '2'.</p>  
+<p> 
+This is because unlike some other object oriented languages,&nbsp; even <i>integers</i>&nbsp; are objects in Ruby.&nbsp;&nbsp; So to perform calculations it necessary to apply methods to integers to get results.
+</p> 
+
+<p class="image">
+<img src="images/ch8_message_passing.png" alt="(Message Passing)"><br>
+<br>Figure 1: Method Execution Sequence
+
+
+
+
+
+
+
+</p><h4>Symbolic attachment</h4>
+<p> 
+Standard method names come in three classes.&nbsp;&nbsp; Names without the  postfix symbols,&nbsp; question marks and explanation marks,&nbsp;  are the primary methods.&nbsp;&nbsp; The question mark postfix indicates that the method is a conditional method.&nbsp;&nbsp; The explanation point postfix indicates a possibly dangerous method.&nbsp;&nbsp; These methods are generally methods that make changes to objects in-place. 
+</p>
+<p> 
+In the example below,&nbsp; the <i>include?</i>&nbsp; method returns true if the parameter is a sub-string of the receiver.
+</p>  
+<pre class="graylist">str = "Test Job xx"
+
+str.include? "job"         # False (Compare is case sensitive)
+str.include? "xx"          # True
+</pre>
+<p> 
+In the example below,&nbsp; <i>downcase!</i>&nbsp; returns the updated string or nil if no changes are made.&nbsp;&nbsp; Just <i>downcase</i>&nbsp; always returns the updated string,&nbsp; even if no changes are made.
+</p> 
+
+<pre class="graylist">str = "This is BIG"
+#
+s = str.downcase          # s = "this is big"  -- str = "This is BIG"
+#
+x = str.downcase!         # x = "this is big"  -- str = "this is big"
+#
+y = str.downcase!         # y = nil            -- str = "this is big"
+</pre>
+
+
+
+<h4>Binary operators type</h4>
+<p> 
+Ruby supports,&nbsp; as most languages,&nbsp; both <i>binary</i> and <i>unary</i> operators.&nbsp;&nbsp; The most prevalent are the binary operators.&nbsp;&nbsp; As the name binary suggest,&nbsp; these operators take two parameters.&nbsp;&nbsp;
+</p> 
+<pre class="graylist">1 + 2                # 1.+(2)  -- '1' is the receiver, + is the method,
+                                  '2' is the methods parameter.
+</pre>
+<p> 
+In more complicated expressions either operator precedence or parenthesis determine the order of execution.&nbsp;&nbsp; The chart below shows the precedence of the variable binary operators:
+</p>
+<pre class="graylist">(PRECEDENCE:  Top(highest) to bottom(lowest))
+::
+[]
+**
+-(unary) +(unary) ! ~
+*  /  %
++  -
+&lt;&lt;  &gt;&gt;
+&amp;
+|  ^
+&gt;  &gt;=  &lt;  &lt;=
+&lt;=&gt; == === != =~ !~
+&amp;&amp;
+||
+.. ...
+=(+=, -=...)
+not
+and or
+
+All of the above are just methods except these:
+
+=, .., ..., !, not, &amp;&amp;, and, ||, or, !=, !~
+
+In addition, assignment operators(+= etc.) are not user-definable.
+</pre>
+
+
+
+
+<h4>Unary operator type</h4>
+<p> 
+There are two <i>unary</i> operators,&nbsp; '+',&nbsp; and '-'.&nbsp;&nbsp; As unary suggests these operators only take one parameter. 
+</p> 
+<pre class="graylist">+2                    # A positive integer value of 2
+-1.0                  # A negative floating value of minus 1.0
+</pre>
+
+
+
+
+
+
+<h4>Attribute Writer Type</h4>
+<p> 
+Objects often provide methods to access,&nbsp; set,&nbsp; and/or modify their internal states.&nbsp;&nbsp; The internal states exposed in this manner are called <i>Attributes</i>. An Attribute writer takes the following form:
+</p> 
+<pre class="graylist">class C
+  def arg=(new_value)
+    @arg = new_value
+  end
+end
+
+C.arg = next_value         # Sets '@arg' to 'next_value'
+</pre>
+<p> 
+Ruby supplies a short cut for this structure,&nbsp; the <i>attr_writer</i>&nbsp; statement.&nbsp;&nbsp; The following is exactly equivalent to the previous example. 
+</p> 
+<pre class="graylist">class C
+  attr_writer :arg
+end
+
+C.arg = next_value         # Sets '@arg' to 'next_value'
+</pre>
+
+
+<h4>Attribute Reader Type</h4>
+<p> 
+The <i>attr_reader</i>&nbsp; statement works in a similar manner,&nbsp; but is setup for read attribute operations.&nbsp;&nbsp; The underlying form is as follows:
+</p>
+<pre class="graylist">class C
+  def arg
+    @arg
+  end
+end
+
+puts "Argument = #{C.arg}"         # Display's value of '@arg'
+</pre>
+<p> 
+Using the attr_reader statement is exactly equivalent to the previous example. 
+</p> 
+<pre class="graylist">class C
+  attr_reader :arg
+end
+
+puts "Argument = #{C.arg}"         # Display's value of '@arg'
+</pre>
+
+
+
+
+
+
+
+<h4>Index type</h4>
+<p> 
+When left value side of an expression (the lvalue) is an array element reference,&nbsp; the ' [ ]=' operator in the receiver is called.&nbsp;&nbsp; It is passed  with one or more indexes,&nbsp; followed by the rvalue of the expression.
+</p> 
+<pre class="graylist">obj[1]    = "data one"       # obj.[]=(1, "data one")
+obj[1, 3] = "data two"       # obj.[]=(1, 3, "data two")
+</pre>
+
+
+
+
+
+
+
+<h3><code>Super</code></h3>
+<p> 
+The key word <i>super</i>&nbsp; is used to indicate that a method should execute it's parents version of a method before processing the local version.&nbsp;&nbsp; This allows the inherited method behavior to be executed as part of the current method processing.&nbsp;&nbsp; This is the heart of a feature,&nbsp;  that allows methods to inherit behavior's so that their functionality can be extended.
+</p> 
+<p> 
+In the following example,&nbsp; a method is defined in class <b>A</b>&nbsp; that prints a message.&nbsp;&nbsp; Then class <b>B</b>&nbsp; is sub-classed from is parent <b>A</b>.&nbsp;&nbsp; Both have a method named <i>test</i>.&nbsp;&nbsp; Now,&nbsp; normally this means that the method <i>test</i>&nbsp; residing in class <b>B</b>&nbsp; would be executed, for it would have precedence.
+</p>
+<p> 
+However,&nbsp; the sub-classed method <i>test</i>&nbsp; has the statement <i>super</i>&nbsp; within it.&nbsp;&nbsp; This means that the inherited method is called with any necessary parameters at that point.&nbsp;&nbsp; Typically this means that any further processing for the method follows the super invocation. 
+</p> 
+<pre class="graylist">class A
+  def test(arg)
+    puts "#{arg} executed in A"
+  end
+end
+class B &lt; A
+  def test(arg, next)
+    super(arg)
+    puts "#{next} called from B"
+  end
+end
+
+B.new.test("ARGA", "NEXT")
+
+Results:
+ARGA executed in A
+NEXT Called from B
+</pre>
+<p> 
+At this point,&nbsp; we can use another short-cut provided by Ruby.&nbsp;&nbsp; If the call to <i>super</i>&nbsp; is execute with <i>zero parameters</i>&nbsp; by a sub-classed method,&nbsp; it will call the method in the super-class with the parameters that the current method received.&nbsp;&nbsp; It should be noted that this assumes super-class <i>has</i>&nbsp; a method of the same name.
+</p> 
+<p>
+Notice in the following example,&nbsp; that zero parameters <i>is not</i>&nbsp; the same thing as an empty parameter list.&nbsp;&nbsp; The call <b>super</b>&nbsp; is different from <b>super()</b>.&nbsp;&nbsp; The latter  sends an <i>empty</i>&nbsp; parameter list!
+</p> 
+<pre class="graylist">class A
+  def test(*args)
+    p args
+  end
+end
+
+class B &lt; A
+  def test(a, b, c)
+    super
+  end
+end
+
+class C &lt; A
+  def test(a, b, c)
+    super()
+  end
+end
+
+B.new.test(1,2,3)
+[1, 2, 3]
+C.new.test(1,2,3)
+[]
+</pre>
+<p> 
+ 
+</p> 
+
+
+
+
+
+
+
+
+<h4>Access Control</h4>
+<p> 
+Ruby defines three levels of protection for object, methods, modules and class constants.
+</p> 
+<ol>
+<li><i>Public</i>&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   Accessible to anyone.</li>
+<li><i>Protected</i>&nbsp;-&nbsp;   Can be called only by objects of the defining class and it subclasses.</li>
+<li><i>Private</i>&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Can only be called by the instances of the class in which they are defined.     </li>
+</ol>
+<p> 
+Access control is set withing the class definition.&nbsp;&nbsp; The default protection for classes and modules  is <i>private</i>.&nbsp; The default protection for structures is <i>public</i>.&nbsp;&nbsp; The access control set will remain in effect until is changed or the cless definition is closed.
+</p>
+<p> 
+As a side note,&nbsp; these three statements are <i>methods</i>&nbsp; not reserved words!&nbsp;&nbsp; They can and are most often used without parenthesis,&nbsp; as in the example below.&nbsp;&nbsp; When used in this manner they set the <i>default protection</i>&nbsp; for all subsequently define methods until changed.
+</p> 
+
+<pre class="graylist">Class C
+  public
+  def a1 ()              # public
+  def a2 ()              # public
+                        
+  private               
+  def b1 ()              # private
+  def b2 ()              # private
+                        
+  protected             
+  def c1 ()              # protected
+  def c2 ()              # protected
+end
+</pre>
+<p> 
+The alternate form,&nbsp; names of methods and constants are sent as parameters.&nbsp;&nbsp; This sets the protection for just the specified methods and constants.
+</p> 
+<pre class="graylist">Class C
+  public
+  def a1 ()              # public
+  def a2 ()              # public
+  def z1 ()              # public at the time of definition
+   ::   ::            
+  private(z1)            # private protection until changed
+</pre>
+
+<p> 
+There is one subtle 'feature' related to access control and visibility.&nbsp;&nbsp; It is possible in a sub-class definition to change the visibly of a method or constant in a super-class of a object.&nbsp;&nbsp; In the sub-class changes the access control setting for a method in it's parent,&nbsp; the visibility of the method is changed for sub-class instances. 
+</p> 
+<pre class="graylist">class Base
+   def btest
+     puts "Test in Base Called!"
+   end
+   private :btest
+end
+
+class C &lt; Base
+  public :btest
+end
+
+class D &lt; Base
+end
+
+c = C.new()
+puts "Class C calling btest"
+c.btest()
+d = D.new()
+puts "Class D calling btest"
+d.btest()
+
+Results:
+Class C calling btest
+Test in Base Called!
+Class D calling btest
+./zz:24: private method `btest' called for #<d:0x2a955cb5a8> (NoMethodError)
+</d:0x2a955cb5a8></pre>
+<h4>Module function</h4>
+<p> 
+Normally the a module method can not be called until the module in mixed-in with a class.
+</p> 
+<pre class="graylist">module Math
+  def sin(x)
+    puts "Math 'sin(#{x}) was called!"
+  end
+  module_function :sin
+end
+
+include Math
+sin(2)
+
+Result:
+Math 'sin(2) was called!
+</pre>
+<p> 
+However, Ruby provides a way to call properly setup module functions without having to include the module.&nbsp;&nbsp; This an advantage when one one tor two module functions are need.&nbsp;&nbsp; The reason that the module methods can be called with polluting the name-space with unnecessary module functions and constants. 
+</p> 
+<p> 
+Ruby accomplishes this with the <b>module_function()</b>&nbsp; method.&nbsp;&nbsp; Within the Module the module_function() statement designates those methods that can be called externally without including the module itself.&nbsp;&nbsp; The module_function() creates module functions for the named methods.&nbsp;&nbsp; These are copies of the originals and may modified independently.&nbsp;&nbsp; Note:&nbsp; that the module itself is the receiver,&nbsp; not the class calling the module method.
+</p> 
+<pre class="graylist">module Math
+  def sin(x)
+    puts "Math 'sin(#{x}) was called!"
+  end
+  module_function :sin
+end
+
+Math.sin(999)
+include Math
+sin(001)
+
+
+# Math 'sin(999) was called!
+# Math 'sin(1) was called!
+
+</pre>
+<h2>Iterators</h2>
+<p>
+An <i>iterators</i>&nbsp; is construction traverses a collection of objects and invokes a <i>block</i>&nbsp; for each element in the collection.&nbsp;&nbsp; We will look at the C/C++,&nbsp; but keep in mind many other languages contain similar constructs.&nbsp;&nbsp; These languages typically use <i>for</i>&nbsp; and <i>while</i>&nbsp; loops to traverse collections,&nbsp; primarily arrays.
+</p>
+<pre class="graylist">arr = [ 1, 3, 4 9, 14]              # Given: Used below also
+
+for (i = 0; i &lt; 5; i++) {           # 'for' loop
+  -- action ---
+}
+
+i = 0
+while i &lt; 5 {                       # 'while' loop
+  --- action ---
+  i += 1;
+}
+</pre>
+<p> 
+Ruby blocks are groups of code inside a pair of parenthesis,&nbsp; or a <b>do ... end</b>&nbsp; construction.&nbsp;&nbsp; When Ruby encounters a block it does not execute it,&nbsp; rather it stores the code and <i>the environment</i>&nbsp; at time it was encountered.&nbsp;&nbsp; That includes local variables,&nbsp; current object,&nbsp; etc.&nbsp;&nbsp; Also this block can only appear adjacent to the method call and starting on the source line. 
+</p> 
+<pre class="graylist">arr.each do | item |
+   puts "Next Item = #{item}"
+end
+</pre>
+<p> 
+Notice that an iterator does not need to be told the length of the collection.&nbsp;&nbsp; Since Ruby has 'duck' typing,&nbsp; we don't even need to know the type of elements in the collection.&nbsp;&nbsp; This a much safer way to step through collections. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Comparison with the function of higher order</h3>
+<p> 
+Some points about blocks need to be covered.&nbsp;&nbsp; Methods can not transfer to plural blocks.&nbsp;&nbsp; For example,&nbsp; you might try to process a two dimensional array with two blocks:
+</p> 
+<pre class="graylist">array2D.each do | i |
+  --- some action ---
+end do | j |
+  --- some action ---
+end
+</pre>
+<p> 
+This sort of processing is possible but must be contained inside <i>one block</i>. 
+</p> 
+<pre class="graylist">array2D.each do | i, j |
+  --- some action ---
+end
+</pre>
+<p> 
+Another point is the ability of block code to reference local variables outside the block itself.&nbsp;&nbsp; The following is example of referencing a local variable.
+</p> 
+<pre class="graylist">lvar = 'ok'
+[ 0,1,2 ].each do |i|
+  puts "#{i} -- " + lvar
+end
+
+Result:
+0 -- ok
+1 -- ok
+2 -- ok
+</pre>
+<p> 
+There is a concern to be covered when modifying local variables outside the block.&nbsp;&nbsp; If the block modifies the outer local variable,&nbsp; it's value will reflect the final value set by the block <i>when the block exits</i>!&nbsp;&nbsp; We will slightly modify the previous code to show this effect.
+</p> 
+<pre class="graylist">lvar = "OK"
+[ 0,1,2 ].each do |i|
+  if i == 2
+    lvar = "Error"
+  end
+  puts "#{i} -- " + lvar
+end
+#
+puts "Exiting value of 'lvar' " + lvar
+
+Results:
+0 -- OK
+1 -- OK
+2 -- Error
+Exiting value of 'lvar' Error
+</pre>
+
+
+
+
+
+
+
+
+
+<h3>Block local variable</h3>
+<p> 
+If a variable occurs inside a block, but is not present in surrounding scope it will be local to the block and will disappear when the block ends.  
+</p> 
+<pre class="graylist">[0, 2].each do |element|
+  c = element + 1
+end
+puts C.to_s
+
+Result:
+...uninitialized constant C (NameError)
+</pre>
+<p> 
+Now let's discuss when variable is both in the block and the surrounding scope.&nbsp;&nbsp; Two things can happen here.&nbsp;&nbsp; If the variable is specified in the parameter list,&nbsp; then the version in the block is local to the block.&nbsp;&nbsp; The variable in the surrounding scope will not be modified.
+</p> 
+<p>
+If the variable is <i>not</i>&nbsp; in the parameter list,&nbsp; the variable in the block is actually the same as the variable in the surrounding scope.&nbsp;&nbsp; If the block changes the variables value,&nbsp;&nbsp; it will also change the variable in the surrounding scope.
+</p>
+<p> 
+The block local variable can never been seen outside it's block.&nbsp;&nbsp; If blocks are nested,&nbsp;&nbsp; then the surrounding scopes can be seen by the nested block. The following example illustrates this concept.
+</p> 
+<pre class="graylist">Lvar = 0
+[ 1 ] .Each do
+  Var1 = 1
+  [ 2 ] .Each do
+    Var2 = 2
+    [ 3 ] .Each do
+      Var3 = 3
+      # here lvar and var1, var2, var3 are visible
+    End
+    # here lvar and var1, var2 are visible
+  End
+  # here lvar and var1 are visible
+End
+# here just lvar is visible
+
+</pre>
+
+
+
+
+
+
+<pre class="screen">% Ruby -e '
+[ 0 ] .Each do
+  I = 0
+End
+P i # here it becomes error
+'
+-e:5: Undefined local variable or method `i'
+For #&lt; Object:0x40163a9c&gt; (NameError)
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Sentence structure of blocks</h3>
+<p> 
+The are two ways to create a block.&nbsp;&nbsp; First, the block can be contained in a <b>do...end</b>&nbsp; form.&nbsp;&nbsp; Second it can be contained in matching pair of parenthesis.
+</p> 
+<pre class="graylist">arr = [ 0, 1, 2]
+
+arr.each do |i|
+  puts i
+end
+
+arr.each { |i|
+  puts i
+}
+</pre>
+<p> 
+The only functional difference between these forms the precedence of the operators.&nbsp;&nbsp; In this case the parenthesis bind <i>tighter</i>&nbsp; than the <b>do...end</b>&nbsp; form.&nbsp;&nbsp; As you can see in the following example,&nbsp; the precedence of the parenthesis changes the how the statement is interpreted.
+</p> 
+<pre class="graylist">M m do...end              # m (m) do...end
+
+M m {....}                # m (m() {....})
+</pre>
+<p> 
+A convention has crystallized among Ruby programmers to use parenthesis for single line blocks and <b>do...end</b>&nbsp; for multi-line blocks.&nbsp;&nbsp; While this is not in any mandatory,&nbsp; it is coming close to being an <i>best practice</i>.
+</p>
+
+
+
+
+
+
+
+
+
+<h3><code>Yield</code></h3>
+<p> 
+<i>Yield</i>&nbsp; is the magic code  that creates iterators.&nbsp;&nbsp; How is that?&nbsp;&nbsp; Within iterators there is logic to step through the collection specified.&nbsp;&nbsp; Typically a iterator steps through a collection one at a time.&nbsp;&nbsp;  Although this is how iterators like <b>each</b> work,&nbsp; there are other schemes that could be used.&nbsp;&nbsp; Even and odd numbers might be a canidate,&nbsp; or how about a iterator that scanned collections for prime numbers?&nbsp;&nbsp; These types of iterators can also be created by users using standard iterators and applying the selection criteria at the block itself.
+</p> 
+<p> 
+In the following example we create our own iterator.&nbsp;&nbsp; Notice the <b>yield()</b>&nbsp; statement.&nbsp;&nbsp; When a yield executed it branches to the associated block and loads any parameters that are specified.&nbsp;&nbsp; When the block finishes execution,&nbsp; it returns to the statement immediately following the <b>yield()</b>&nbsp; statement.  
+</p> 
+<pre class="graylist">class Array
+  def my_each
+    i= 0
+    while i &lt; self.length
+      yield self [ i ]          # Yield (jump) to block
+      i+= 1                     # Return from block
+    end
+  end
+end
+
+[ 0,1,2,3,4 ] .each do |i|
+  p i
+end
+
+[ 0,1,2,3,4 ] .my_each do |i|
+  p i
+end
+</pre>
+<p> 
+A <b>yield()</b>&nbsp; call is somewhat similar to a function call in C or C++.&nbsp;&nbsp; It jumps to a function code location with the specified parameters and when it returns to the next statement after the function call.&nbsp;&nbsp; Further,&nbsp; it returns a value.
+</p> 
+<p> 
+One last point.&nbsp;&nbsp; There <i>must be a block</i>&nbsp; associated with method using an iterator. To see why,&nbsp; try entering the following code into 'irb'.
+</p> 
+
+<pre class="graylist">% Ruby -e ' [ 0,1,2 ].Each'
+
+-e:1:In `each': No block given (LocalJumpError)
+        From -e:1
+</pre>
+
+<h3><code>Proc</code></h3>
+<p> 
+As hopefully you remember that <i>blocks</i>&nbsp; are chucks of code associated with a method.&nbsp;&nbsp; These blocks execute in the context <i>in which they were defined.</i>&nbsp;&nbsp; Blocks are <i>not</i>&nbsp; objects.&nbsp;&nbsp; They are simply blocks of code.&nbsp;&nbsp; They can be converted to <i>proc</i>&nbsp;  objects in several ways.</p> 
+ 
+<p> 
+ The first way is to add a ampersand prefixed variable after the parameters of the method.&nbsp;&nbsp; This variable(&amp;block) will contain the proc object created when this function is executed.&nbsp;&nbsp; Within the method body this proc can be executed by the <i>call</i>&nbsp; method.
+</p> 
+<pre class="graylist">def meth1(p1, p2, &amp;block)
+  puts block.call(p1,p2)
+end
+
+meth1(1,2) { puts "a block" }
+meth1(3,4) { |p1, p2| puts "NEW CALL #{p1} #{p2}" }
+
+Results:
+a block
+nil
+NEW CALL 3 4
+nil
+</pre>
+<p> 
+The second method is to call proc.new and provide it a block.&nbsp;&nbsp; Extending the previous code,&nbsp; we show how to create proc objects with <b>Proc.new().
+</b></p><b> 
+<pre class="graylist">block1 = Proc.new { |p1, p2| puts "NEXT CALL #{p1} #{p2}"}
+block1 .call(5, 7)
+
+Results:
+NEXT CALL 5 7
+</pre>
+<p> 
+The last method creates the proc object with <b>lambda</b> method.&nbsp;&nbsp;   
+</p> 
+<pre class="graylist">block = lambda { |p1, p2| puts "NEXT CALL #{p1} #{p2}"}
+block.call(5, 7)
+
+Results:
+NEXT CALL 5 7
+</pre>
+<p> 
+Proc objects internally respond to the command <b>next</b>.&nbsp;&nbsp; The next command causes the block to exit.&nbsp;&nbsp; The following shows examples of all three kinds of Proc object generation.
+</p> 
+<pre class="graylist">def meth
+    res = yield
+  "The block returns! #{res}"
+end
+
+puts meth { next 99}
+
+pr = Proc.new { next 98}
+puts pr.call
+
+pr = lambda { next 97}
+puts pr.call
+
+Results:
+The block returns! 99
+98
+97
+</pre>
+
+
+
+
+
+
+
+
+<h4>Proc continued</h4>
+<p> 
+ 
+</p> 
+<pre class="graylist">def print_block (&amp;block)
+    puts  block
+end
+
+print_block() { puts "Test !"} 
+print_block()
+
+#<proc:0x0000002a955cc340@. zz:9="">
+nil
+</proc:0x0000002a955cc340@.></pre>
+<p> 
+Another way to attack the problem is to create a proc object and use that as a substitute for enclosing the code itself with the parenthesis.&nbsp;&nbsp; In the example bwlow,&nbsp; both methods produce the exact same results.
+</p> 
+<pre class="graylist">
+xblock = Proc.new {|i| p i}          # Method 1 - Create a proc object
+[ 0,1,2 ].each(&amp;xblock)   
+     --- OR --- 
+[ 0,1,2 ].each {|i| p i}             # Method 2 - Use a Raw Block
+
+Results:
+0
+1
+2
+</pre>
+<p> 
+The following code is also equivalent to the two methods above!
+</p> 
+<pre class="graylist">def each_item(&amp;block)
+  [ 0,1,2 ].each(&amp;block)
+end
+
+each_item do |i| 
+  p i
+end
+
+Results:
+0
+1
+2
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2>Introduction of Ruby Expressions</h2>
+<p> 
+Since almost all things in Ruby are actual <i>objects</i>,&nbsp; then the statements created in the language are primary made up of various expressions.&nbsp;&nbsp; For example,&nbsp; the control structure <b>if</b>&nbsp; is an expression and it has some value.
+</p> 
+
+
+
+<h3><code>If</code></h3>
+<p> 
+The explanation of&nbsp; <b>if</b>&nbsp; is probably not necessary,&nbsp; but a discussion of all the basic statements is required.&nbsp;&nbsp;  When a conditional expression
+is <i>true</i>&nbsp; it executes itself.&nbsp;&nbsp; For programmers from 'C' and other languages it is important that they understand what constitutes <i>true</i> and <i>false</i> in Ruby.
+</p> 
+<p> 
+If the value of an expression is <i>nil</i>&nbsp; or&nbsp; <i>false</i> &nbsp; it is false.&nbsp;&nbsp; All other values are <i>true.</i>&nbsp;&nbsp; The following example shows the results of some basic conditional values.
+</p> 
+<pre class="graylist">z = 0             # Hey 'C' guys: Notice the zero is true NOT FALSE!
+o = 1
+m = -1
+n = nil
+f = false
+t = true
+
+if z then puts "z is true" end
+if o then puts "1 is true" end
+if m then puts "m is true" end
+if n then ; else puts "n is false" end
+if f then ; else puts "f is false" end
+if t then puts "t is true" end
+
+Results:
+z is true
+1 is true
+m is true
+n is false
+f is false
+t is true
+</pre>
+<p> 
+Some standard conditional statements:
+</p> 
+<pre class="graylist">P (if true then 1 else 2 end)                         
+P (if false then 1 else 2 end)                        
+P (if false then 1 elsif true then 2 else 3 end)      
+
+Results:
+1
+2
+2
+</pre>
+<p> 
+Finally,&nbsp;&nbsp; if no part of the&nbsp; <b>if</b>&nbsp; has a matching expression,&nbsp; then <i>nil</i>&nbsp; is returned.&nbsp;&nbsp;  The following statements both return nil.
+</p> 
+<pre class="graylist">p (if false then 1 end)
+p (if true then end)  
+
+Results:
+nil
+nil 
+</pre>
+<p> 
+One unusual aspect of Ruby is the ability to add a conditional on the end of a statement.&nbsp;&nbsp; If the conditional is <i>false</i>&nbsp; then the statement will not execute. 
+</p> 
+<pre class="graylist"> print "debug\n" if $debug     # Prints if variable '$debug' is true.
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+<h3><code>Unless</code></h3>
+<p> 
+The <b>unless</b>&nbsp; statement is the reverse of the <b>if</b>&nbsp;statement,&nbsp;&nbsp; While it provides an&nbsp; <b>else</b> statement,&nbsp; there is no <b>elsif</b>.&nbsp;&nbsp; The following is the syntax of the <b>unless</b> statement.
+</p> 
+<pre class="graylist">unless expr [then]
+  expr...
+[else
+  expr...]
+end
+</pre>
+<p> 
+The above syntax is the equivalent to the following <b>if</b>&nbsp;syntex. 
+</p> 
+<pre class="graylist">if !(cond)
+  ...
+else
+  ...
+end
+</pre>
+<p> 
+As it was with the <b>if</b>&nbsp; statement,&nbsp; an <b>unless</b>&nbsp; modifier can be added to a statement.&nbsp;&nbsp; If the <b>unless</b>&nbsp; condition is <i>true</i>&nbsp; the statement will not execute. 
+</p> 
+<pre class="graylist">print "stop\n" unless valid($passwd)
+</pre>
+
+
+
+
+
+
+
+<h3><code>And &amp;&amp;, or ||, not !</code></h3>
+<p> 
+The Boolean &nbsp;'AND'&nbsp; operator and the Boolean &nbsp;'OR'&nbsp; operator come in two flavors.&nbsp;&nbsp; The alphabetic versions <i>and</i>&nbsp; and <i>or</i>.&nbsp; and the <i>&amp;&amp;</i>&nbsp; and <i>||</i> operators respectfully. The following conditional statements are identical with the exception that the  alphabetic versions have a low precedence than the symbol versions.&nbsp;&nbsp; This can be significant if expressions are not properly parenthesized.
+</p> 
+<pre class="graylist">if &lt;cond&gt;&nbsp;and&nbsp;&lt;cond&gt;&nbsp;  
+  puts "OK!"                # Print if both &lt;cond&gt; are true 
+end
+
+if &lt;cond&gt;&nbsp;&amp;&amp;;&nbsp;&lt;cond&gt;&nbsp;
+  puts "OK!"                # Print if both &lt;cond&gt; are true 
+end
+end
+</pre>
+<p> 
+The following Boolean 'OR' statements are also identical except for precedence. 
+</p> 
+<pre class="graylist">if &lt;cond&gt;&nbsp;or&nbsp;&lt;cond&gt;&nbsp;
+  puts "OK!"                 # Print if either &lt;cond&gt; is true  
+end
+
+if &lt;cond&gt;&nbsp;||&nbsp;&lt;cond&gt;&nbsp;
+  puts "OK!"                 # Print if either &lt;cond&gt; is true  
+end
+</pre>
+<p> 
+The following Boolean 'NOT' statement also comes in alphabetic and symbol form.
+</p> 
+<pre class="graylist">if not false
+  puts "OK!"                 # Print if 'not false' is true  
+end
+
+if !false
+  puts "OK!"                 # Print if !false is true  
+end
+
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>Ternary operator</h3>
+<p>  
+The <i>ternary</i>&nbsp; operator is an old friend from the 'C' and 'C++' languages.&nbsp;&nbsp; If syntax form is as follows:
+</p> 
+<pre class="graylist">&lt;boolean-expression&gt;&nbsp; ? &lt;expr1&gt;&nbsp; : &lt;expr2&gt;&nbsp;
+</pre>
+<p> 
+This statement returns &lt;expr1&gt;&nbsp; if the <i>boolean-expression</i> is true,&nbsp;  &lt;expr2&gt;&nbsp; if false.
+</p> 
+
+
+
+
+
+
+
+
+<h3>Loops: each, for, loop, while, and until</h3>
+<p> 
+Ruby provides a number of loop constructs.&nbsp;&nbsp; The <i>while</i>&nbsp; and <i>until</i>&nbsp; should be familiar with most programmers.&nbsp;&nbsp; These syntax for these is as follows:
+</p> 
+<pre class="graylist">While <i>boolean-expression</i>&nbsp; [ do | : ]
+  --- <i>body</i> ---
+end
+
+until <i>boolean-expression</i>&nbsp; [ do | : ]
+  --- <i>body</i> ---
+end
+</pre>
+<p> 
+The while and until expressions can also be used as modifiers.&nbsp;&nbsp; In both cases if the expression is a <b>begin/end</b> block the will be executed at least one time.&nbsp;&nbsp; If is not
+a block,&nbsp;&nbsp; it will execute zero or more times depending on the value of the Boolean-expression.
+</p> 
+<pre class="graylist"><i>expression</i>&nbsp; while&nbsp; <i>boolean-expression</i>
+
+<i>expression</i>&nbsp; until&nbsp; <i>boolean-expression</i>
+</pre>
+<p> 
+Now,&nbsp; the following loop constructs should be new to 'C'/'C++' programmers.&nbsp;&nbsp; In particular,&nbsp; the <i>for</i>&nbsp; loop is nothing like the 'C' language version.&nbsp;&nbsp; Let us look at it's syntax.
+</p> 
+<pre class="graylist">for <i>name</i> [, <i>name</i>]... in <i>expression</i>&nbsp; [ do | : ]
+  --- <i>body</i> ---
+end
+</pre>
+<p>
+A <i>for</i>&nbsp; is executed like an <i>each loop</i>&nbsp; (See below).&nbsp;&nbsp; The difference is that local variables defined within it's loop are available outside to loop.&nbsp;&nbsp; This is not the case an <i>each loop</i>.
+</p> 
+<pre class="graylist"><i>expression</i>.each do | name [, name]... |
+  --- <i>body</i> ---
+end
+</pre>
+<p> 
+Finally, there is the <i>loop</i>&nbsp; statement that iterates over it's associated block.&nbsp;&nbsp; It should be noted that is actually an <i>method</i>&nbsp; defined in the kernel, not a language construct.
+</p> 
+<pre class="graylist">loop do
+  --- <i>body</i> ---
+  --- <i>break</i> ---        # loop does not provide an exit
+  --- <i>body</i> ---
+end 
+</pre>
+<p> 
+The following is an example of a working <i>loop</i> block:
+</p> 
+<pre class="graylist">i = 0
+loop do
+   puts "Line: #{i}"
+   i += 1
+   break if i &gt; 2
+end
+
+Results:
+Line: 0
+Line: 1
+Line: 2
+</pre>
+
+
+<h3>Loops: break, redo, next, and retry</h3>
+<p> 
+The <i>break, redo, next</i>&nbsp; and &nbsp; <i>retry</i> are used to change the flow of <i>while, until,</i>&nbsp; and <i>iterator</i>&nbsp; controlled loops.&nbsp;&nbsp; These changes made to the flow are as follows:
+</p> 
+<pre class="graylist">1.&nbsp; Break&nbsp;-&nbsp; Terminates the immediately enclosing loop.&nbsp; Control
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;resumes at the statement following the block
+2.&nbsp; redo&nbsp;&nbsp;-&nbsp; Repeats the loop, without advancing the iterator,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or reevaluating the condition expression.
+3.&nbsp; next&nbsp;&nbsp;-&nbsp; Skips to end of loop,&nbsp; starts next iteration.
+4.&nbsp; retry&nbsp;-&nbsp; Restarts to loop <i>and</i> reevaluates to condition expression.
+</pre>
+<p>  
+The following is an example using <i>break</i>&nbsp; and <i>next</i>.
+</p> 
+<pre class="graylist">i = 1
+while true
+  if i &gt; 10 
+    puts "i &gt; 10 = #{i}"
+    break                 # Execute break if 'i' greater than 10
+  elsif i % 2 == 0
+    i *= 2
+    puts "i * 2 = #{i}"
+    next                  # Execute next following (i * 2)
+  end
+  i += 1
+  puts "i + 1 = #{i}"     # Default execution (i + 1)
+end
+
+Results:
+i + 1 = 2
+i * 2 = 4
+i * 2 = 8
+i * 2 = 16
+i &gt; 10 = 16
+</pre>
+
+
+
+<h3><code>Case</code></h3>
+<p> 
+The case statement is a powerful language structure for sorting through a large number
+of conditions affecting a decision or decisions.&nbsp;&nbsp; It in it's simpler form is like a multi-way <i>if</i>&nbsp; statement.&nbsp;&nbsp; The syntax of this first form is:
+</p> 
+<pre class="graylist">case 
+  when &lt;object&gt; <i>boolean-expression</i> &lt;object&gt;
+    --- <i>body</i> ---
+  when &lt;object&gt; <i>boolean-expression</i> &lt;object&gt; 
+    --- <i>body</i> ---
+  else
+    --- <i>body</i> ---
+  end
+</pre>
+<p> 
+An actual case expression looks like the following: 
+</p> 
+<pre class="graylist">e 
+[1, 6, 10, 18, 20 ].each do |numb|
+case 
+  when numb == 10
+     puts "It was 10"
+  when numb &lt; 5 
+     puts "It was less than 5"
+  when numb &lt; 20
+     puts "It was less than 20"
+  else
+     puts "Else Called!"
+  end
+end
+
+It was less than 5
+It was less than 20
+It was 10
+It was less than 20
+Else Called!  
+</pre>
+<p> 
+The more common form of the <i>case</i>&nbsp; statement depends on the <i>case equality</i> operator: '==='.&nbsp;&nbsp; This form compares the <i>target</i>,&nbsp; as specified by the case statements parameter, to the various <i>when clause</i>&nbsp; values.&nbsp;&nbsp; The following shows the syntax of the 'target' form of case.
+</p>
+<pre class="graylist">case &lt;target&gt;
+  when &lt;object&gt;      # &lt;object&gt; === &lt;target&gt;
+    --- <i>body</i> ---
+  when  &lt;object&gt;     # &lt;object&gt; === &lt;target&gt;
+    --- <i>body</i> ---
+  else
+    --- <i>body</i> ---
+  end
+</pre> 
+
+<p> 
+ The nature of the comparison is dependent on the class involved.&nbsp;&nbsp; Strings are simple string compression between the <i>when clause</i>&nbsp; value and the <i>target</i>.&nbsp;&nbsp; Regular expressions are just pattern matches between the <i>when</i> and <i>target</i> values.&nbsp;&nbsp; Ranges check for the <i>target</i> being within the range specified by the <i>when clause.</i>
+</p> 
+<pre class="graylist">[ "exit", 12, "debug", "quit", "fail", 8, "donut"].each do |command|
+case command
+  when "debug"
+    puts "Debug Found"
+  when /^\d*$/
+    puts "Digit Commmand Found"
+  when "exit", "quit", "fail"
+    puts "Time to get out!"
+  when (1..10) 
+    puts "Number between 1 and 10 Found!"
+  else
+    puts "Unknown target: #{command}"
+  end
+end
+
+Results:
+Time to get out!
+Unknown target: 12
+Debug Found
+Time to get out!
+Time to get out!
+Number between 1 and 10 Found!
+Unknown target: donut
+</pre>
+
+<p> 
+ 
+</p> 
+
+
+
+
+
+
+
+
+
+
+<h3>Exception</h3>
+<p> 
+An exception is a way for the programmer to handle various errors.&nbsp;&nbsp; This can be done several ways.&nbsp;&nbsp; If the error is recoverable,&nbsp; then the exception can be <i>caught</i>&nbsp; and handled by the user.&nbsp;&nbsp; If it is not recoverable,&nbsp; the use may still need to process the exception to prevent other errors.&nbsp; Closing files,&nbsp; deleting partial results, etc. 
+</p>
+<p> 
+However,&nbsp; there are times when the user wishes to generate an exception.&nbsp;&nbsp; This generally happens when a program must <i>unwind</i>&nbsp; the stack to get back to a position where the error can be handled.&nbsp;&nbsp; As often occurs,&nbsp; the portion of the program generating the error may have no way of knowing how process the error. 
+</p> 
+<p> 
+The underlying purpose of exceptions is that the exceptions are passed up through the layers of a program.&nbsp;&nbsp; At each level,&nbsp;  a particular exception can be caught and any other errors may be passed on.&nbsp;&nbsp; In a well written program,&nbsp; all recoverable errors should be caught by the entity that knows how to recover from that error.
+</p> 
+ <p> 
+The following is an example of a simple exception being raised by the user.&nbsp;&nbsp; In this first case the error is generated but not handled.&nbsp;&nbsp; In cases where errors are eventually <i>not</i>&nbsp; handled,&nbsp; Ruby is the handler of last resort.&nbsp;&nbsp; Errors of this sort are reported to the user and the program is aborted.
+</p> 
+<pre class="graylist">[ 0, 2, 4,7,8,10].each do |cond|
+  puts "Cond = #{cond}"
+  raise(ArgumentError, "Cond is not even number") if (cond % 2) != 0
+end
+
+Results:
+Cond = 0
+Cond = 2
+Cond = 4
+Cond = 7
+.... Cond is not even number (ArgumentError)
+</pre>
+<p> 
+How do we handle this situation?&nbsp;&nbsp; Ruby provides the <i>rescue</i> clause.&nbsp;&nbsp; The user surrounds the code that may generate an exception with a <b>begin...end</b>&nbsp; block.&nbsp;&nbsp; At the end the block a <i>rescue</i>&nbsp; clause will catch the specified exceptions.
+</p> 
+<pre class="graylist">["puts 'start'", "x","puts 'end'"].each do |string|
+  begin
+     eval string
+     raise ArgumentError, "Error Raised" if string.include?('start')
+#
+  rescue NameError =&gt; boom
+    print "String doesn't compile: " + boom
+    puts ""
+# 
+  rescue ArgumentError =&gt; bang
+    print "Argument Error: " + bang 
+    puts ""
+  end
+end
+
+Results
+start
+Argument Error: Error Raised
+String doesn't compile: (eval): undefined local variable or method `x'
+end
+</pre> 
+<p> 
+The previous results show that the first and third strings evaluate correctly.&nbsp;&nbsp; However, because we raised a bogus exception for strings containing 'start',&nbsp; an <i>ArgumentError</i>&nbsp; exception was raised for the first string!&nbsp;&nbsp; The second string does not evaluate and raises an <i>NaemError</i>&nbsp; exception.
+</p> 
+<p> 
+Rescue will only process the exceptions specified.&nbsp;&nbsp; After you process an exception,&nbsp; you may place a 'bare' raise statement that will process any additional exceptions.
+</p> 
+<p> 
+Since Exception objects are represented in a hierarchy,&nbsp; using a high level exception such as <i>Standard Error</i>&nbsp; will preempt errors such as <i>ArgumentError</i>.&nbsp;&nbsp; For example replacing the first rescue group above with the following produces a different result.&nbsp;&nbsp; As you can see below,&nbsp; the <i>StandardError</i>&nbsp; clause processed the <i>ArguementError</i>&nbsp; exception.
+</p> 
+<pre class="graylist">  ::         ::        ::
+  rescue StandardError, NameError =&gt; boom     # Inserted StandardError
+    print "String doesn't compile: " + boom
+    puts ""
+  ::         ::        ::
+end
+
+Results:
+start
+String doesn't compile: Error Raised
+String doesn't compile: (eval): undefined local variable or method `x'
+end
+</pre>
+<p> 
+If no exception is detected,&nbsp; then none of the rescue clauses bodies are executed. In some cases the user may wish execute some code if no exception occurred.&nbsp;&nbsp; The <b>else</b>&nbsp; clause is used for this purpose:
+</p> 
+<pre class="graylist">[1, 2, 3, 4].each do | x |
+begin
+  print "line: #{x}"
+  if x &gt; 4 
+     raise ArgumentError, "Argument Error" 
+  end
+
+  rescue StandardError =&gt; boom
+    print "String doesn't compile: " + boom
+    puts ""
+  else
+    print " printed Successfully!\n"
+  end
+end    
+
+Result:
+line: 1 printed Successfully!
+line: 2 printed Successfully!
+line: 3 printed Successfully!
+line: 4 printed Successfully!
+</pre>
+<pre class="screen">% Ruby raise.Rb
+Raise.Rb:2:In `raise_exception': Wrong number of argument (ArgumentError)
+        From raise.Rb:7
+</pre>
+
+<h3>Variable and constant</h3>
+<p> 
+Ruby's variables and constants are differentiated by their starting characters:  
+</p> 
+<pre class="graylist">Object Type        First Character
+----------------&nbsp;&nbsp;&nbsp;----------------
+Local Variables    Lower Case or '_'
+Method Parameters  Lower Case or '_'
+Method Names       Lower Case or '_'
+
+Globals            $			 
+
+Instance Variables @
+
+Class Variables    @@
+
+Class Name         Upper Case
+
+Constants          Upper Case
+</pre> 
+<p> 
+Ruby has a good number of predefined variables.&nbsp;&nbsp; They all start with a '$' character.&nbsp;&nbsp; This also classifies them a global.&nbsp;&nbsp; These are being used less as experience with Ruby grows. A list of some these globals follows:
+</p> 
+<pre class="graylist">$$         The process number of the Ruby running this script.
+$?         The status of the last executed child process.
+$:         Load path for scripts and binary modules by load or require.
+$"         The array contains the module names loaded by require.
+$DEBUG     The status of the -d switch.
+$FILENAME  Current input file from $&lt;. Same as $&lt;.filename.
+$LOAD_PATH The alias to the $:.
+</pre>
+<p> 
+There are six pseudo variables:
+</p>
+<pre class="graylist">self
+ nil
+true
+false
+__FILE__
+__LINE__
+</pre>
+
+ self, nil, true, false, __FILE__, and __LINE__</b>.
+<p></p> 
+<p> 
+Finally, there are a number of Pre-defined global constants.&nbsp;&nbsp; A sampling of these are:
+</p> 
+<pre class="graylist">TRUE
+FALSE
+NIL
+ARGV
+RUBY_VERSION
+</pre>
+
+
+
+
+
+
+
+
+<h3>Substitution of Variable Values</h3>
+<p> 
+The value of a variable can be changed with an assignment statement.&nbsp;&nbsp; The value assigned can be another value, constant, literal, or just about any expression. 
+</p> 
+<pre class="graylist">Var = 1
+Obj = Object.New
+@ivar = 'string'
+@@cvar = [ 'array' ]
+PI = 3.1415926535
+$gvar = {'key' =&gt; 'value'}
+</pre>
+<p> 
+As for attributes we do not set directly,&nbsp; but rather set and retrieve these values through a <i>proxies</i>(methods).&nbsp;&nbsp; 
+</p> 
+
+
+
+
+
+
+
+
+<h3>Self substitution</h3>
+<p> 
+Lets look at a typical 'C/C++' shortcut to perform basic operations on a lvalue: 
+</p> 
+<pre class="graylist">var += 1                # Equivalent:  var = var + 1
+var *= 2                # Equivalent:  var = var * 2
+</pre>
+<p> 
+This can be combined with an attribute methods to provide the same functionality:
+</p> 
+<pre class="graylist">class C
+  def i= (n) 
+    @i = n
+  end
+  def i
+    @i
+  end
+end
+
+obj = C.new
+obj.i = 1
+obj.i += 2
+p obj.i
+
+Results:
+3
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+<h3><code>Defined?</code></h3>
+<p> 
+The method <i>defined?</i>&nbsp; is a powerful tool for insuring that arbitrary expressions can be successfully executed.&nbsp;&nbsp; If the argument is not going to result in a valid return value,&nbsp; then this method returns <b>nil</b>.&nbsp;&nbsp; The result for arguments that are defined is the return of a string describing the argument.
+</p> 
+<pre class="graylist">defined? 5                # "expression"
+defined? $;               # "global-variable"
+defined? Alien            # "constant"
+defined? Math::PI         # "constant"
+defined? a = 6            # "assignment"
+defined? 50.integer?      # "method"
+</pre>
+<p> 
+The following is a simple example of <i>defined?</i>&nbsp; usage.&nbsp;&nbsp; Since any valid argument will return something other than <b>nil</b>,&nbsp; logically testing the result will return <i>true</i> when the argument is defined!
+</p>
+<pre class="graylist">var = 1
+if defined? var
+  puts "defined!"
+end
+
+puts defined? var
+
+Results:
+defined!
+local-variable
+</pre>
+
+
+
+
+
+
+<h2>Sentence</h2>
+<p>  
+The <i>sentence</i>&nbsp; structure of Ruby is far more relaxed than 'C' or 'C++'.&nbsp;&nbsp; As we see the following sections,&nbsp; Ruby provides more flexibility in statement structures and with much less in the way of syntax 'hints' to the parser.
+</p> 
+
+
+
+
+<h3>Terminal of sentence</h3>
+<p> 
+&nbsp;&nbsp; Whereas those languages <i>require</i>&nbsp; a semicolon at the end of sentences to terminate them,&nbsp; Ruby does not.&nbsp;&nbsp; Ruby only requires a semicolon if you are putting more than one statement on a line,&nbsp; or indicating a break in the normal sentence structure. 
+</p>
+<pre class="graylist">puts "Hello, World!" ; puts "Hello, Redundantly!"
+
+Results:
+Hello, World!
+Hello, Redundantly!
+</pre>
+<p> 
+As long statements on separate lines much to syntax of Ruby is optional.&nbsp;&nbsp; The following is a small sample of the Ruby syntax.
+</p> 
+ 
+<pre class="graylist">a = 1
+b = 3
+
+if a == 1           # [then] is optional here
+  c = 4
+else
+  c = 5
+end
+
+# When it is expressed on one line then
+# more tokens are needed to parse the statement
+
+if b == 3 then c = 7 else c = 8 end  
+puts "c = " + c.to_s
+
+# Here the semicolon stands in for the empty 
+# 'then' <statement> structure.
+if c != 7 ;  else c = 9 end
+puts "c = " + c.to_s
+
+Results:
+c = 7
+c = 9
+</statement></pre>
+<p> 
+Another feature of Ruby is that indentation is not significant.&nbsp;&nbsp; If line breaks occur within binary operators or between parenthesis they are treated as white space. 
+</p> 
+<pre class="graylist"># The following is equivalent to: "1 + 3 * method(6, 7 + 8)"
+
+1 +
+   3 *
+         method(
+   6,
+      7 + 8 )
+</pre>
+<p> 
+If a user wish to insert a line break in a location  that would normally be significant it can be
+<i>quoted</i>&nbsp; with a backslash.
+</p> 
+<pre class="graylist">p 1 +        # Line break not significant 
+  2
+
+p 1 \        # Line break is significant and must be 'quoted'
+  + 3
+
+Results:
+3
+4
+</pre>
+
+
+
+
+
+
+
+
+
+
+
+<h3><code>If</code>/<code>Unless</code> Modifier</h3>
+<p> 
+The <i>if</i> and <i>unless</i> modifiers are similar to the <i>while</i> and <i>until</i>&nbsp; modifiers.&nbsp;&nbsp; They provide conditional execution of an expression.&nbsp;&nbsp; The expression is executed if the conditional modifier evaluates as <i>true</i> for <b>if</b>, or <i>false</i> for <b>unless</b>.
+</p> 
+<pre class="graylist"><i>expression</i>&nbsp;if&nbsp;<i>boolean-expression</i>
+
+<i>expression</i>&nbsp;unless&nbsp;<i>boolean-expression</i>
+</pre>
+
+
+
+
+
+
+<h3><code>While</code>/<code>Until</code> Modifier</h3>
+<p> 
+The <i>while</i> and <i>until</i> modifiers were discussed previously.&nbsp;&nbsp;
+</p> 
+<pre class="graylist"><i>expression</i>&nbsp; while&nbsp; <i>boolean-expression</i>
+
+<i>expression</i>&nbsp; until&nbsp; <i>boolean-expression</i>
+</pre>
+<p> 
+Some examples of these modifiers are shown below: 
+</p> 
+<pre class="graylist">sleep(1) until ready?
+
+begin
+   res = get_response(id)
+end while need_continue?(res)
+</pre>
+
+
+
+
+
+
+
+<h3>Class definition</h3>
+<p> 
+The class definition syntax is as follows:
+</p> 
+<pre class="graylist">class  [ scope:: ] classname [ &lt; super-expression ]
+  --- Body ---
+end
+</pre>
+<p> 
+The scope operator usage is not often used and will not be discussed here in this abbreviated discussion. 
+</p>
+<p> 
+The class definition will create a class that is a subclass of either <i>Object</i>&nbsp; if the <i>super-expression</i>&nbsp; is missing,&nbsp; or as subclass of <i>super-expression</i>&nbsp; if it is present.
+</p> 
+<pre class="graylist">Class B                # Class B is a subclass of Object
+  --- Body ---
+end
+
+Class C &lt; B            # Class C is a subclass of B
+  --- Body ---
+end
+</pre>
+
+
+
+
+
+
+
+
+<h3>Method definition</h3>
+<p> 
+The syntax of method definition is shown below.&nbsp;&nbsp; Methods may be created with a variety of arguments or none at all.
+</p> 
+<pre class="graylist">def <method_name> [ ( arg, ... )
+  --- Body ---
+end
+</method_name></pre>
+<p> 
+Some example method definitions: 
+</p> 
+<pre class="graylist">def med1                       # No Args
+  a = 1
+end
+
+def med2(arg1, arg2)           # 2 Args
+  a = arg1 + arg2
+end
+
+def med3(arg1, arg2 = 0)       # 2 Args -  2nd Arg default = 0
+  a = arg1 + arg2
+end
+
+def med4(arg1, *rest)          # 1 Arg and array of variable args
+  a = arg1
+end
+
+def med5(arg1, arg2, &amp;block)   # 2 Args plus block
+  a = arg1 + arg2
+end
+</pre>
+
+
+
+
+
+<h3>Singleton method definition</h3>
+<p> 
+While most methods are defined for a class as a whole,&nbsp; there are times that a particular object instance requires a unique method or modification of a method.&nbsp;&nbsp; This is accomplished by defining the method with a object prefix: 
+</p> 
+<pre class="graylist">def obj.unique_msg[ (arg [,arg] [,arg = default] [,*arg] [, &amp;block] )
+  --- body ---
+end
+</pre>
+<p> 
+The unique method is stored in a singleton object attached to the instance object.&nbsp;&nbsp; When the object in question calls the method,&nbsp; it is not found in that instance.&nbsp;&nbsp; The search up the hierarchy runs into the attached singleton containing the method before reaching the super-class.
+</p> 
+<p> 
+In the following example the method <b>cls_msg</b>&nbsp; is modified for <i>obj2</i>.&nbsp;&nbsp; Even obj2 calls the same method until the singleton message is defined.  
+</p> 
+
+<pre class="graylist"> class C
+   def cls_msg
+     puts "class message"
+   end
+end
+
+obj1 = C.new
+obj2 = C.new
+obj3 = C.new
+
+obj2.cls_msg
+
+def obj2.cls_msg
+  puts "Singleton message!"
+end
+
+obj1.cls_msg
+obj2.cls_msg
+obj3.cls_msg
+
+Results:
+class message       # Before obj2.cls_msg defined!
+class message
+Singleton message!  # After obj2.cls_msg defined!
+class message 
+</pre>
+
+
+
+
+
+<h3>Singleton class definition</h3>
+<p> 
+As we discussed in the previous section,&nbsp; creating a <i>singleton method</i>&nbsp; also creates an <i>singleton class</i>&nbsp; or <i>anonymous class</i>.
+</p>
+<p> 
+It should be understood that a singleton class is a virtual class,&nbsp; it can not be sub-classed or instatiated.&nbsp;&nbsp; It's only purpose is to provide a place to mount methods and instance variables that are uniquely associated with the specified Class Name.  
+</p> 
+<pre class="graylist">machine = "Dozer"
+class &lt;&lt; machine
+  def blade_down
+    puts "The #{self} moves dirt"
+  end
+end
+
+machine.blade_down
+
+Results:
+The Dozer moves dirt
+</pre>
+
+
+
+
+
+
+<h3>Multiple substitution</h3>
+<p> 
+Multiple substitutions, or Parallel assignment,  is another feature of Ruby.&nbsp;&nbsp; Let us look a simple case. The following assignments are all equivalent.
+</p> 
+<pre class="graylist">a, b, c = 1, 2, 3          # Assignment 1
+
+a = 1                      # Assignment 2
+b = 2
+c = 3
+
+a, b c = [1, 2, 3]         # Assignment 3
+</pre>
+<p> 
+The sort of assignment can be done with any expression that contains multiple values on the right side to the assignment.
+</p> 
+<pre class="graylist">tmp = [ 1, 2, 3 ]
+a, b, c = tmp
+ret1, ret2 = some_method()   # If returns multiple values
+</pre>
+<p> 
+The process of parallel assignment begins when the right side(rvalue) of an assignment is evaluated and contains multiple values.&nbsp;&nbsp; The rvalue side is evaluated left to right and collected into an array.
+</p> 
+<p> 
+At this point the left side(lvalue) is inspected for multiple values.&nbsp;&nbsp; If it is a single variable,&nbsp; then that variable is loaded with the rvalue array.&nbsp;&nbsp; If it contains multiple variables,&nbsp; they are load left to right with the values from the rvalue array.&nbsp;&nbsp; The results depend on the number of items in the rvalue's and lvalue's.
+</p> 
+<pre class="graylist">a, b, c = [1, 2, 3]
+puts "a = #{a} b = #{b} c = #{c}"
+
+a, b, c = [1, 2]
+puts "a = #{a} b = #{b} c = #{c}"
+unless c 
+  puts "nil or false loaded in c"
+end
+
+a, b, c = [1, 2, 3, 4]
+puts "a = #{a} b = #{b} c = #{c}"
+
+Results:
+a = 1 b = 2 c = 3
+a = 1 b = 2 c =
+nil or false loaded in c
+a = 1 b = 2 c = 3
+</pre>
+<p> 
+The arrays on both sides to the assignment will be evaluated and 'flatten' to a single dimension before the actual assignment takes place.
+</p> 
+<pre class="graylist">a, (b, c, d) = [ 1, [ 2, 3, 4 ] ]
+puts "a = #{a} b = #{b} c = #{c} d = #{d}"
+
+a, (b, (c, d)) = [ 1, [ 2, [ 3, 4 ] ] ]
+puts "a = #{a} b = #{b} c = #{c} d = #{d}"
+
+(a, b), (c, d) = [ [ 1, 2 ] , [ 3, 4 ] ]
+puts "a = #{a} b = #{b} c = #{c} d = #{d}"
+
+Results:
+a = 1 b = 2 c = 3 d = 4
+a = 1 b = 2 c = 3 d = 4
+a = 1 b = 2 c = 3 d = 4
+</pre>
+<p> 
+Index and attribute substitution on the left is still possible: 
+</p> 
+<pre class="graylist">i = 0
+arr = [ ]
+arr [ i ], arr [ i+1 ], arr [ i+2 ] = 0, 2, 4
+p arr
+
+class C
+  def attr0= (n)
+    @attr0 = n
+  end
+  def attr1= (n)
+    @attr1 = n
+  end
+  def attr2= (n)
+    @attr2 = n
+  end
+end
+
+obj = C.new
+
+obj.attr0, obj.attr1, obj.attr2 = "a", "b", "c"
+p obj.inspect 
+
+results:
+[0, 2, 4]
+@attr0 = "a", @attr1 = "b", @attr2 = "c"    # Inspect result cleaned up
+</pre>
+<p> 
+Finally, like the asterisk prefixed parameters in methods,&nbsp; the same can be used for an last element of the lvalue.
+</p> 
+<pre class="graylist">first, *rest = 0, 1, 2, 3, 4
+p first 
+p rest 
+
+Results:
+0
+[1, 2, 3, 4]
+
+</pre>
+<h4>Block parameter multiple substitution</h4>
+<p> 
+Multiple substitution is deeply embedded in the Ruby syntax.&nbsp;&nbsp; So it should be of no suprise that multiple paramters can be passed by a <i>yield</i>&nbsp; into a block.&nbsp;&nbsp; As you will notice yield and blocks follow the same multiple assignment rules as we discussed in the previous section! 
+</p> 
+<pre class="graylist">def doit
+  yield("one", "two", "three")  
+  yield("1", "2", "3")
+  yield("one", "two")  
+  yield("1", "2")
+  yield("one", "two", "three", "four")  
+  yield("1", "2", "3", "4")
+end
+
+doit {|one,two,three| puts "one= #{one} two= #{two} three= #{three}"}
+
+Results:
+one= one  two= two  three= three
+one= 1  two= 2  three= 3
+one= one  two= two  three=          # Three = nil
+one= 1  two= 2  three=              # Three = nil
+one= one  two= two  three= three    # Forth value thrown away
+one= 1  two= 2  three= 3            # Forth value thrown away
+</pre>
+
+
+
+
+
+
+
+
+
+
+<h3><code>Alias</code></h3>
+<p> 
+The alias statement creates a new name for methods, operators, globals, and expression backreference(&amp;$, $', $`, $+). A backrefernce holds the various results of an regular expression matchs.
+</p> 
+<p> 
+As we will show below,&nbsp; when a method is aliased it points to a copy of the old method body.&nbsp;&nbsp; If the method is subsequently changed,&nbsp; the aliased method still executes to old method body. 
+</p> 
+<pre class="graylist">def method1
+  puts "Method one"
+end
+
+alias method2 method1         # method2 now points at body of method1
+
+method1
+method2
+
+def method1
+   puts "Method Changed!"     # Change Method1
+end
+
+method1
+method2
+
+Results:
+Method one
+Method one
+Method Changed!               # method1 calls new method body
+Method one                    # Aliased method2 calls old method1 body
+</pre>
+<h3><code>Undef</code></h3>
+<p> 
+The <i>undef</i>&nbsp; command undefines a method name.&nbsp;&nbsp; This is similar to the unix unlink command.
+</p> 
+<pre class="graylist">Class C
+  Undef method_name
+end
+</pre>
+<p> 
+If the method-name has been aliased,&nbsp; the method's body is still available through the alias.
+</p> 
+<pre class="graylist">def method1
+  puts "Method one"
+end
+
+alias method2 method1    # Name method2 now points at body of method1
+
+method1
+method2
+
+undef method1
+begin
+  method1
+  rescue
+  puts "Method1 Gone!"
+end
+method2              # Method2 still points at a copy of method1's body
+
+Results:
+Method one
+Method one
+Method1 Gone!            # Called by 'method1'
+Method one               # Called by 'method2'
+</pre>
+<p> 
+If the rescue clause above did not intercept the Name Error,&nbsp; a message similar to the following would be printed and the program aborted! 
+</p> 
+<pre class="graylist">... undefined local variable or method `method1' for ... (NameError)
+</pre>
+
+
+
+
+
+
+
+<h2>Trifling item</h2>
+
+<h3>Comment</h3>
+<p> 
+Any time Ruby sees a <i>pound sign</i>,&nbsp; ' #',&nbsp; that is not quoted in the form&nbsp; ' \#',&nbsp; Ruby will ignore that character and all following characters till the end of line. &nbsp;&nbsp; Comments are always ignored by Ruby. 
+</p> 
+<pre class="graylist"># Comment line 
+
+# comment            -- Multi-line comment
+#  :: ::      
+# comment
+
+1 + 1     # Comment  -- In-line comment
+</pre>
+
+
+
+
+
+<h3>=begin ... =end document</h3>
+<p> 
+This form of documentation must  be followed by the <b>rdoc</b>&nbsp; tag to distinguish the block from other forms of documentation,&nbsp; provided that it is intended as Rdoc Documentation..
+</p> 
+<pre class="graylist">=begin rdoc
+This type is used for documenting programs with Rdoc.
+How to setup for Rdoc is beyond the scope of this document.
+=end
+</pre>
+<p> 
+However, for use as a method for inserting multi-line comments,&nbsp; the following form should be used. 
+</p> 
+<pre class="graylist">=begin
+It is the multiline comment
+comment lines continue until =end
+=end
+</pre>
+
+<hr>
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp; additions,&nbsp; and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+<p></p>
+
+
+</div>
