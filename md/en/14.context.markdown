@@ -1,0 +1,2083 @@
+
+<body>
+<h1>Chapter 14: Context</h1>
+<font size="+3" color="BLUE">Blue Chapter -- Machine Translation</font>
+
+<p> 
+Much of very wide range. The first step is to evaluate how the internal state apparatus to be represented by 
+Whether the story. Then, the defining statement in the class as an example of the state 
+Changes in the city. Following the internal state sentence is a method definition of what an impact. 
+Finally, both the variable definitions and references to observe the behavior of the change. 
+</p> 
+
+
+
+<h2> Ruby stack </h2> 
+
+<h3> context and the stack </h3> 
+
+<p> 
+A typical image of a procedural language, calling the procedure every time the local queer 
+And return to areas where the number of procedures required to perform an information structure 
+(Stack frames) and stored, 
+Stack it. From the top of the stack and procedures 
+Back in the structure to pop back to the previous method. For example 
+Chapter 5 of moths - as described, BEJIKOREKUSHON 
+That program is run C-called true image. 
+</p> 
+
+<p> 
+I want to note where the program is running into a stack, just type 
+It is the location of the program changed or not. For example, a "strange local 
+Count <code> i </code> reference "," The current frame <code> i </code>, please "Oh instruction 
+Only of this, "frame <code> i </code>, please" is not write. In other words stack 
+State "that" will not change the results. That is why procedures, etc. 
+When I have attempted several times called the code will only have one (Figure 1). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_stack.jpg" alt="(stack)"> <br> 
+Figure 1: The only change is a stack 
+</p> 
+
+<p> 
+Ruby's execution method is basically a process that is nothing other than a chain of calls 
+, Which is essentially the same image have run. That is the same code 
+, Accessed by the local side of the block local variables and variable scope Schou 
+It is a change in the group. And that scope is represented by the stack. 
+</p> 
+
+<p> 
+However, Ruby and iterator <code> Proc </code> scope to use previously used to temporarily return 
+Or from a stack of Pop pushed only simple to implement. Resona 
+Ruby is running for the stack piled into the complex. So stack ICHIOU 
+And said that the list should be considered not just a maybe. 
+</p> 
+
+<p> 
+The method calls in addition to the class definition has changed the scope of local variables 
+RISURU, local calls and variable methods do not match the scope of the transition. 
+Other blocks have also split and we do not have to. That is why in this 
+A variety of reasons, as far away as a stack of seven books. 
+</p> 
+
+<table> 
+<tbody><tr> <td> stack pointer </td><td> </td><td> stack frame type </td><td> </td><td> explain </td><td> </td></tr> 
+<tr> <td> <code> ruby_frame </code> </td><td> </td><td> <code> struct FRAME </code> </td><td> </td><td> method calls recorded </td><td> </td></tr> 
+<tr> <td> <code> ruby_scope </code> </td><td> </td><td> <code> struct SCOPE </code> </td><td> </td><td> local variable scope </td><td> </td></tr> 
+<tr> <td> <code> ruby_block </code> </td><td> </td><td> <code> struct BLOCK </code> </td><td> </td><td> block scope </td><td> </td></tr> 
+<tr> <td> <code> ruby_iter </code> </td><td> </td><td> <code> struct iter </code> </td><td> </td><td> current <code> FRAME </code> or enumeration is </td><td> </td></tr> 
+<tr> <td> <code> ruby_dyna_vars </code> </td><td> </td><td> <code> struct Varmap </code> </td><td> </td><td> block local variable scope </td><td> </td></tr> 
+<tr> <td> <code> ruby_class </code> </td><td> </td><td> <code> VALUE </code> </td><td> </td><td> method definition class at </td><td> </td></tr> 
+<tr> <td> <code> ruby_cref </code> </td><td> </td><td> <code> NODE </code> (<code> NODE_CREF </code>) </td><td> </td><td> class nesting information </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+C is a stack of seven books, this means that Ruby, Ruby and the execution of simple arithmetic image 
+The seven-fold from the C is supposed to be tough. But the fact is it's not a seven-fold 
+You see, Ruby is 20 times more tough. 
+</p> 
+
+<p> 
+First of all these stacks and stacks of the frame (of) the structure of 
+Let's easy to explain. Defined in the file is <code> eval.c </code> or <code> env.h </code>. Basically 
+These frames are stacked in touch <code> eval.c </code>…… just do not want, but 
+<code> gc.c </code> marked when you need to know the structure for <code> env.h </code>, has been the 
+Above. 
+</p> 
+
+<p> 
+Of course it is spam <code> gc.c </code>, even if it is possible, to separate the function so that the Essential 
+Is required. Then of course slower. That program is normal by the 
+Do not, however, GABEJIKOREKUTA and evaluation of the core instruments <code> ruby </code> largest BOTO 
+RUNEKKU so, even if our function calls once he's not dumb. 
+</p> 
+
+
+
+<h3> <code> ruby_frame </code> </h3> 
+
+<p> 
+<code> ruby_frame </code> method is to call a stack of records. Stack frame 
+Structure is <code> struct FRAME </code>. Terminology is a little confusing, generic noun, "Su 
+Tuck frame "It's just a frame, <code> struct FRAME </code> that <code> FRAME </code> and writing 
+Note that divide. 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_frame </code> </p> 
+<pre class="longlist"> 
+   16 extern struct FRAME ( 
+   17 VALUE self; / * self * / 
+   18 int argc; / * * the number of arguments / 
+   19 VALUE * argv; / * argument array * / 
+   20 ID last_func; / * This method FRAME (name called) * / 
+   21 ID orig_func; / * FRAME this method (as defined when the name) * / 
+   22 VALUE last_class; / * last_func receivers class * / 
+   23 VALUE cbase; / * class variables constant search for the origin * / 
+   24 struct FRAME * prev; 
+   25 struct FRAME * tmp; / * GC avoided. See below * / 
+   26 struct RNode * node; / * line running file name and line number * / 
+   27 int iter; / * call with blocks? * / 
+   28 int flags; / * * The following two / 
+   29) * ruby_frame; 
+
+   33 # define FRAME_ALLOCA 0 / * FRAME stack is in the * / 
+   34 # define FRAME_MALLOC 1 / * FRAME is to ensure that malloc * / 
+
+(env.h) 
+</pre> 
+
+
+<p> 
+First, <code> prev </code> to be a member of the stack is made of the linked list 
+Known (see Figure 2). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_framestack.jpg" alt="(framestack)"> <br> 
+Figure 2: <code> ruby_frame </code> 
+</p> 
+
+<p> 
+<code> ruby_xxxx </code> is the tip of the stack frame to point to the stack after all 
+Common to all of the time, so writing. 
+
+</p><p> 
+Members of the first structure <code> self </code>. <code> rb_eval () </code> argument is <code> self </code> happened 
+See also the separate <code> self </code> to remember is why. That level is C 
+For the function. Say more <code> super </code> corresponding <code> rb_call_super () </code>. 
+For the function. <code> super </code> to run the current method is needed receiver 
+However, <code> rb_call_super () </code> side of the call should not have such information. I say 
+The user's control is shifted to C code at the time of <code> rb_eval () </code> break the cycle of the other 
+. So zero information from the state <code> self </code> to obtain information on the Contact Kana 
+Must be the conclusion. And <code> FRAME </code> in the yard as a CHO 
+Exactly. 
+</p> 
+
+<p> 
+I think about it some more, <code> argc </code> and <code> argv </code> is also strange. Variable parameters 
+It's the end of it from local variables, methods at the start of the same local strange 
+The number assigned to the argument once and then I got the need to keep it is not 
+No? This is not going to be used for me, actually another <code> super </code> NOTA 
+Because of it. Ruby is no argument <code> super </code> to call the method parameters and variables 
+Super-class value method has been handed over to them. In order to 
+Meanwhile, is variable parameters (equivalent to a local variable area)-placed to take 
+There will be. 
+</p> 
+
+<p> 
+And <code> last_func </code> and <code> orig_func </code> difference is <code> alias </code> and Methods come. 
+For example 
+</p> 
+
+<pre class="emlist"> 
+class C 
+   def orig () end 
+   alias ali orig 
+end 
+C.new.ali 
+</pre> 
+
+<p> 
+If the case, <code> last_func = ali </code>, <code> orig_func = orig </code>. 
+All in all, this is also a member of <code> super </code> KARAN, if you will. 
+</p> 
+
+
+
+<h3> <code> ruby_scope </code> </h3> 
+
+<p> 
+<code> ruby_scope </code> stack represents a local scope. 
+Methods module class definitions, including definitions specific definitions of class 
+The scope of independence. Stack frame structure is <code> struct SCOPE </code>. 
+The frame is <code> SCOPE </code> and call. 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_scope </code> </p> 
+<pre class="longlist"> 
+   36 extern struct SCOPE ( 
+   37 struct RBasic super; 
+   38 ID * local_tbl; / * * An array of local variable name / 
+   39 VALUE * local_vars; / * * local variable storage / 
+   40 int flags; / * * The following four / 
+   41) * ruby_scope; 
+
+   43 # define SCOPE_ALLOCA 0 / * local_vars alloca is assigned * / 
+   44 # define SCOPE_MALLOC 1 / * local_vars malloc is assigned * / 
+   45 # define SCOPE_NOSTACK 2 / * POP_SCOPE in the * / 
+   46 # define SCOPE_DONT_RECYCLE 4 / * This is generated by SCOPE, Proc * / 
+
+(env.h) 
+</pre> 
+
+
+<p> 
+The first element is <code> struct RBasic </code> So this is the object of Ruby. That is 
+It is <code> Proc </code> for dealing with the object. For example, to consider the following cases: 
+I try. 
+</p> 
+
+<pre class="emlist"> 
+def make_counter 
+   lvar = 0 
+   return Proc.new (lvar + = 1) 
+end 
+
+cnt = make_counter () 
+p cnt.call # 1 
+p cnt.call # 2 
+p cnt.call # 3 
+cnt = nil # reference to pieces. Proc here and finally made it unnecessary 
+</pre> 
+
+<p> 
+This method made <code> Proc </code> objects are created than the original method itself 
+Live longer. And the <code> Proc </code> from the local variables <code> lvar </code> of reference, 
+I made <code> Proc </code> With the disappearance of OKANE to hold local variables. 
+So GABEJIKOREKUTA it up as you do not not know the timing of release 
+. 
+</p> 
+
+<p> 
+And even bother <code> struct SCOPE </code> is <code> struct FRAME </code> cut off from the second reason is 
+Point. The first is that the class definitions and methods are not a local call 
+The scope of the independent variables. Second, C-defined method to call 
+SU Ruby's when the local variable area is not required. 
+</p> 
+
+
+
+<h3> <code> ruby_block </code> </h3> 
+
+<p> 
+<code> struct BLOCK </code> and the Ruby's ITERETABUROKKU <code> Proc </code> object entity, 
+At some point, the evaluator's like a snapshot. This Kulun 
+Page also <code> FRAME </code> <code> SCOPE </code> the same way as <code> BLOCK </code> and a rough sketch. 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_block </code> </p> 
+<pre class="longlist"> 
+  580 static struct BLOCK * ruby_block; 
+
+  559 struct BLOCK ( 
+  560 NODE * var; / * block parameter (mlhs) * / 
+  561 NODE * body; / * number of body block * / 
+  562 VALUE self; / * BLOCK generation of self * / 
+  563 struct FRAME frame; / * BLOCK ruby_frame generated when a copy * / 
+  564 struct SCOPE * scope; / * BLOCK generated when ruby_scope * / 
+  565 struct BLOCKTAG * tag; / * BLOCK identity * / 
+  566 VALUE klass; / * BLOCK generated when ruby_class * / 
+  567 int iter; / * BLOCK generated when ruby_iter * / 
+  568 int vmode; / * BLOCK generated when scope_vmode * / 
+  569 int flags; / * BLOCK_D_SCOPE, BLOCK_DYNAMIC * / 
+  570 struct RVarmap * dyna_vars; / * * block local variable area / 
+  571 VALUE orig_thread; / * block to generate the thread * / 
+  572 VALUE wrapper; / * block generation when ruby_wrapper * / 
+  573 struct BLOCK * prev; 
+  574); 
+
+  553 struct BLOCKTAG ( 
+  554 struct RBasic super; 
+  555 long dst; / * destination that is to return * / 
+  556 long flags; / * BLOCK_DYNAMIC, BLOCK_ORPHAN * / 
+  557); 
+
+  576 # define BLOCK_D_SCOPE 1 / * an independent variable scope block * / 
+  577 # define BLOCK_DYNAMIC 2 / * BLOCK Ruby is obtained from the program * / 
+  578 # define BLOCK_ORPHAN 4 / * origin to the end of the FRAME * / 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> frame </code> pointer does not pay attention. This means that <code> struct FRAME </code> until the contents 
+For each copy of the fact that you hold. <code> struct FRAME </code> (for speed) 
+Stack on a solid machine will be placed in secure, but, <code> BLOCK </code> of origin <code> FRAME </code> than 
+Because of the potential longevity of the case the copy. 
+</p> 
+
+<p> 
+Also <code> struct BLOCKTAG </code> is that the separation is a block from multiple 
+<code> Proc </code> may also generate the same block in order to determine that. Vu same 
+Rock-generated <code> Proc </code> is the same <code> BLOCKTAG </code> with. 
+</p> 
+
+
+
+<h3> <code> ruby_iter </code> </h3> 
+
+<p> 
+Stack <code> ruby_iter </code> is calling the current method of enumeration 
+(Block with whether the call). Frame is <code> struct iter </code>. 
+But more unity among the stack frame and consider <code> ITER </code> referred to it. 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_iter </code> </p> 
+<pre class="longlist"> 
+  767 static struct iter * ruby_iter; 
+
+  763 struct iter ( 
+  764 int iter; / * * following three / 
+  765 struct iter * prev; 
+  766); 
+
+  769 # define ITER_NOT 0 / * methods are currently evaluating the non-enumeration * / 
+  770 # define ITER_PRE 1 / * * I call the method of enumeration / 
+  771 # define ITER_CUR 2 / * is currently evaluating methods of enumeration * / 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Enumeration of the method or not, but should be determined by the unit, 
+Thus <code> struct FRAME </code> and another structure that is available, why? 
+</p> 
+
+<p> 
+Methods "iterator" If you need to tell it is natural and 
+The "enumeration," even if the facts must be知らせなけれ. 
+However, the order <code> BLOCK </code> to load a whole is very heavy. The caller variables 
+References such as waste disposal is also increasing. So <code> BLOCK </code> instead of more small 
+Com and light <code> ITER </code> to積もう, he said. It is more 
+Chapter 16, described the block. 
+</p> 
+
+
+
+<h3> <code> ruby_dyna_vars </code> </h3> 
+
+<p> 
+Block local variable area. The second part of the frame structure is also seen 
+<code> struct RVarmap </code>. It is simply <code> VARS </code> called. 
+</p> 
+
+<p class="caption"> ▼ <code> struct RVarmap </code> </p> 
+<pre class="longlist"> 
+   52 struct RVarmap ( 
+   53 struct RBasic super; 
+   54 ID id; / * variable name * / 
+   55 VALUE val; / * The value * / 
+   56 struct RVarmap * next; 
+   57); 
+
+(env.h) 
+</pre> 
+
+
+<p> 
+Note that I ask is, <code> struct RVarmap </code> list is the first one in Kulun 
+It's that time (Figure 3). And one frame in one low - 
+In response to the local variable scope. "Local variable scope", not "block 
+KUROKARU variable scope "because the block is nested in places like 
+He is represented by one list. Blocks separated when the parser and look like, 
+<code> id = 0 </code>-<code> RVarmap </code> (header) represented by. This will also further delay. 
+Chapter 16, described the block. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_vars.jpg" alt="(vars)"> <br> 
+Figure 3: <code> ruby_dyna_vars </code> 
+</p> 
+
+
+
+<h3> <code> ruby_class </code> </h3> 
+
+<p> 
+<code> ruby_class </code> is <code> def </code> and the method to define when the target class, respectively. 
+The statement is usually the class definition <code> self </code> is because the class <code> ruby_class == self </code>. 
+, And top-level <code> eval </code>, <code> instance_eval </code> a special method in the middle 
+<code> self! = ruby_class </code> to be. 
+</p> 
+
+<p> 
+<code> ruby_class </code> frame is simple <code> VALUE </code> in the frame structure is not. , Etc. 
+POKU playing a stack of thousand? But it than I ever <code> prev </code> Po 
+There is no inter-structure is a lot of it, what do you stack the 
+The? Answer the following sections. 
+</p> 
+
+<p> 
+After the frame is <code> CLASS </code> to call them. 
+</p> 
+
+
+
+<h3> <code> ruby_cref </code> </h3> 
+
+<p> 
+<code> ruby_cref </code> reference to the class respectively. 
+Frame remains the same nomenclature, <code> CREF </code> said. 
+The structure is…… 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_cref </code> </p> 
+<pre class="longlist"> 
+  847 static NODE * ruby_cref = 0; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Why…… <code> NODE </code>. This is simply "does not need a new definition, <code> VALUE </code>'s finger 
+Up structure "It used to be just. Node type is <code> NODE_CREF </code>, 
+The allocation is a member of the following. 
+</p> 
+
+<table> 
+<tbody><tr> <td> union members </td><td> </td><td> access macro </td><td> </td><td> used in the way </td><td> </td></tr> 
+<tr> <td> <code> u1.value </code> </td><td> </td><td> <code> nd_clss </code> </td><td> </td><td> outside of class (<code> VALUE </code>) &lt; td&gt; </td></tr> 
+<tr> <td> <code> u2 </code> </td><td> </td><td> - </td><td> </td><td> - </td><td> </td></tr> 
+<tr> <td> <code> u3.node </code> </td><td> </td><td> <code> nd_next </code> </td><td> </td><td> previous <code> CREF </code> to hold </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+Member name is <code> nd_next </code> can actually hold that "before (prev)" of <code> CREF </code>. 
+For example, following the example of a program to explain the actual figure. 
+</p> 
+
+<pre class="emlist"> 
+class A 
+   class B 
+     class C 
+       nil # (A) 
+     end 
+   end 
+end 
+</pre> 
+
+<p> 
+(A) to evaluate the code when, <code> ruby_cref </code> is shown in Figure 4. 
+So on. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_crefstack.jpg" alt="(crefstack)"> <br> 
+Figure 4: <code> ruby_cref </code> 
+</p> 
+
+<p> 
+But each time drawing and writing of繁雑is intended to obscure. So in what follows 
+Figure 4 and the same state as follows words to it. 
+</p> 
+
+<pre class="emlist"> 
+A ← B ← C 
+</pre> 
+
+
+
+<h3> <code> PUSH </code> / <code> POP </code> macro </h3> 
+
+<p> 
+More than a stack frame structure would also push for macro-Pop is 
+Have already done that. For example <code> FRAME </code>, <code> PUSH_FRAME () </code> and <code> POP_FRAME () </code>, the 
+At this time. Since coming real soon and is using the time to explain it 
+Especially now. 
+</p> 
+
+
+
+<h3> other states </h3> 
+
+<p> 
+The main stack is not important, but so, <code> ruby </code> evaluator of the other 
+There are several states. I'll list easily. However stack, and these are 
+Not necessarily. Rather, it is not so much. 
+</p> 
+
+<table> 
+<tbody><tr> <td> variable name </td><td> </td><td>-</td><td> </td><td> meaning </td><td> </td></tr> 
+<tr> <td> <code> scope_vmode </code> </td><td> </td><td> <code> int </code> </td><td> </td><td> default method definition visibility </td><td> </td></tr> 
+<tr> <td> <code> ruby_in_eval </code> </td><td> </td><td> <code> int </code> </td><td> </td><td> rating after the start of the Perth </td><td> </td></tr> 
+<tr> <td> <code> ruby_current_node </code> </td><td> </td><td> <code> NODE * </code> </td><td> </td><td> currently evaluating the file name and line number </td><td> </td></tr> 
+<tr> <td> <code> ruby_safe_level </code> </td><td> </td><td> <code> int </code> </td><td> </td><td> <code> $ SAFE </code> </td><td> </td></tr> 
+<tr> <td> <code> ruby_errinfo </code> </td><td> </td><td> <code> VALUE </code> </td><td> </td><td> exception being processed </td><td> </td></tr> 
+<tr> <td> <code> ruby_wrapper </code> </td><td> </td><td> <code> VALUE </code> </td><td> </td><td> isolated environment for RAPPAMOJURU </td><td> </td></tr> 
+</tbody></table> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> module definition </h2> 
+
+<p> 
+<code> class </code> statement <code> module </code> statement, class-specific definitions and the implementation of any 
+Similar. 
+Three similar ones continue to look at it is not fun and this is the most 
+A small number of elements (so simple) <code> module </code> look at the statement to it. 
+</p> 
+
+<p> 
+First of all, <code> module </code> What sentence? In other words, that is what is起こるべき 
+<code> module </code> a statement? Several characteristics of the whole world. 
+</p> 
+
+<ul> 
+<li> object is generated by the new module </li> 
+The object is <li> module <code> self </code> in </li> 
+<li> independent variable scope with local </li> 
+<li> constant assigned to write the module and is defined by constant </li> 
+<li> variable class assignment to write the module and the variable is defined by the class </li> 
+<li> <code> def </code> write method and the module is defined. </li> 
+</ul> 
+
+<p> 
+These things having to do what I do, it will be on the point. 
+Let's look at the code to it. 
+</p> 
+
+
+
+<h3> survey </h3> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+module M 
+   a = 1 
+end 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree </p> 
+<pre class="longlist"> 
+NODE_MODULE 
+nd_cname = 9621 (M) 
+nd_body: 
+     NODE_SCOPE 
+     nd_rval = (null) 
+     nd_tbl = 3 [_ ~ a] 
+     nd_next: 
+         NODE_LASGN 
+         nd_cnt = 2 
+         nd_value: 
+             NODE_LIT 
+             nd_lit = 1: Fixnum 
+</pre> 
+
+
+<p> 
+<code> nd_cname </code>名らしいmodules. <code> cname </code> is Const NAME or Class NAME, etc. 
+CHIRAKA. And some have tried to dump <code> nd_body </code> always 
+<code> NODE_SCOPE </code> on. As a member of <code> nd_tbl </code> table is a local variable 
+And in that, <code> struct SCOPE </code> and the name is similar to that at the thought of this 
+<code> NODE_SCOPE </code> scope of local variables to produce an important role in the 
+There is no doubt seem 
+</p> 
+
+
+
+<h3> <code> NODE_MODULE </code> </h3> 
+
+<p> 
+, <code> rb_eval () </code>-<code> NODE_MODULE </code> handlers to look at. <code> rb_raise () </code> relations, 
+Error handling, and the main topic of the relationship is a thin cut back on BASSARI. So far more than 200 pages 
+It also cut back on work done on it, because every other source code to be示さなく 
+Sure. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_MODULE </code> (condensed version) </p> 
+<pre class="longlist"> 
+case NODE_MODULE: 
+   ( 
+       VALUE module; 
+
+       if (rb_const_defined_at (ruby_class, node-&gt; nd_cname)) ( 
+           / * Already created modules to gain the kind of * / 
+           module = rb_const_get (ruby_class, node-&gt; nd_cname); 
+       ) 
+       else ( 
+           / * Create a new module and a constant set * / 
+           module = rb_define_module_id (node-&gt; nd_cname); 
+           rb_const_set (ruby_cbase, node-&gt; nd_cname, module); 
+           rb_set_class_path (module, ruby_class, rb_id2name (node-&gt; nd_cname)); 
+       ) 
+
+       result = module_setup (module, node-&gt; nd_body); 
+   ) 
+   break; 
+</pre> 
+
+
+<p> 
+First module is <code> ruby_class </code> (inside the module) on the nest 
+It defines that you want to see. It is <code> ruby_class </code> for 
+<code> rb_const_xxxx () </code> to call it understandable. Only once <code> ruby_cbase </code> for 
+Players, but they are usually <code> ruby_class </code> the same, so it's fine to ignore. 
+This difference is an issue that first and foremost. 
+</p> 
+
+<p> 
+The first half, <code> if </code>, divided into the modules, Predefined already whether or not 
+Check. Ruby is one of several modules that can "add" definition 
+Because you can. 
+</p> 
+
+<pre class="emlist"> 
+module M 
+   def a # M # a define 
+   end 
+end 
+Add module M # define (or redefine not override) 
+   def b # M # b define 
+   end 
+end 
+</pre> 
+
+<p> 
+This program is a module <code> M </code> in <code> a </code> and <code> b </code> is defined by the two methods. 
+</p> 
+
+<p> 
+In this case, the second <code> M </code> definition of the module <code> M </code> is already in constant or 
+And, when used alone to retrieve it. Constant <code> M </code> If there is no definition of the first 
+And (<code> rb_define_module_id () </code>) to make the module. 
+</p> 
+
+<p> 
+Finally <code> module_setup () </code> However, this function is performed on the body module statement. 
+Sentence statement modules as well as class and class-specific statement of <code> module_setup () </code> run. 
+"None of the three similar statement," and said it is the reason. 
+Let's argument <code> node-&gt; nd_body </code> (<code> NODE_SCOPE </code>) that the passing 
+The attention you want. 
+</p> 
+
+
+
+<h3> <code> module_setup () </code> </h3> 
+
+<p> 
+Module, or class, or class-specific body of the execution sentence is carried out 
+<code> module_setup () </code>. Ruby stack of mass action is finally coming to tell me. 
+</p> 
+
+<p class="caption"> ▼ <code> module_setup () </code> </p> 
+<pre class="longlist"> 
+3424 static VALUE 
+3425 module_setup (module, n) 
+3426 VALUE module; 
+3427 NODE * n; 
+(3428 
+3429 NODE * volatile node = n; 
+3430 int state; 
+3431 struct FRAME frame; 
+3432 VALUE result; / * OK * / 
+3433 TMP_PROTECT; 
+3434 
+3435 frame = * ruby_frame; 
+3436 frame.tmp = ruby_frame; 
+3437 ruby_frame = &amp;frame; 
+3438 
+3439 PUSH_CLASS (); 
+3440 ruby_class = module; 
+3441 PUSH_SCOPE (); 
+3442 PUSH_VARS (); 
+3443 
+           / * (A) ruby_scope-&gt; local_vars initialization * / 
+3444 if (node-&gt; nd_tbl) ( 
+3445 VALUE * vars = TMP_ALLOC (node-&gt; nd_tbl [0] +1); 
+3446 * vars + + = (VALUE) node; 
+3447 ruby_scope-&gt; local_vars = vars; 
+3448 rb_mem_clear (ruby_scope-&gt; local_vars, node-&gt; nd_tbl [0]); 
+3449 ruby_scope-&gt; local_tbl = node-&gt; nd_tbl; 
+3450) 
+3451 else ( 
+3452 ruby_scope-&gt; local_vars = 0; 
+3453 ruby_scope-&gt; local_tbl = 0; 
+3454) 
+3455 
+3456 PUSH_CREF (module); 
+3457 ruby_frame-&gt; cbase = (VALUE) ruby_cref; 
+3458 PUSH_TAG (PROT_NONE); 
+3459 if ((state = EXEC_TAG ()) == 0) ( 
+3460 if (trace_func) ( 
+3461 call_trace_func ( "class", ruby_current_node, ruby_class, 
+3462 ruby_frame-&gt; last_func, 
+3463 ruby_frame-&gt; last_class); 
+3464) 
+3465 result = rb_eval (ruby_class, node-&gt; nd_next); 
+3466) 
+3467 POP_TAG (); 
+3468 POP_CREF (); 
+3469 POP_VARS (); 
+3470 POP_SCOPE (); 
+3471 POP_CLASS (); 
+3472 
+3473 ruby_frame = frame.tmp; 
+3474 if (trace_func) ( 
+3475 call_trace_func ( "end", ruby_last_node, 0, 
+3476 ruby_frame-&gt; last_func, ruby_frame-&gt; last_class); 
+3477) 
+3478 if (state) JUMP_TAG (state); 
+3479 
+3480 return result; 
+3481) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In one breath to read the rather too large. 
+IRANA likely, it's time to cut back to it. 
+</p> 
+
+<p> 
+First <code> trace_func </code>消せるArea is unconditional. 
+</p> 
+
+<p> 
+Idiom relationship tag is visible, so it will become more clear, 
+Ruby's <code> ensure </code> to represent the SHIMAOU. 
+</p> 
+
+<p> 
+Starting immediately after the function, eliminating the argument <code> n </code> to a local variable <code> node </code> to the assignment, 
+<code> node </code> in <code> volatile </code> and they have another assignment that is not completely 
+This is to avoid known GC. So the first argument from <code> node </code> to have 
+Meaning is not changed. 
+</p> 
+
+<p> 
+The first half of the function, <code> ruby_frame </code> and had to mess it up and 
+Late <code> ruby_frame = frame.tmp </code> is nothing if not in pairs. 
+Here is a look at the future, just <code> ruby_frame </code>-<code> push pop </code> and 
+Consider it. 
+</p> 
+
+<p> 
+Also (A) to comment on the code <code> ruby_scope-&gt; local_vars </code> initialization, and will 
+I stopped by. Later. 
+</p> 
+
+<p> 
+Consequently, the only summarized below. 
+</p> 
+
+<p class="caption"> ▼ <code> module_setup </code> (condensed version) </p> 
+<pre class="longlist"> 
+static VALUE 
+module_setup (module, node) 
+     VALUE module; 
+     NODE * node; 
+( 
+     struct FRAME frame; 
+     VALUE result; 
+
+     push FRAME 
+     PUSH_CLASS (); 
+     ruby_class = module; 
+     PUSH_SCOPE (); 
+     PUSH_VARS (); 
+     ruby_scope-&gt; local_vars initialization 
+     PUSH_CREF (module);
+ruby_frame-&gt; cbase = (VALUE) ruby_cref; 
+     begin 
+         result = rb_eval (ruby_class, node-&gt; nd_next); 
+     ensure 
+         POP_TAG (); 
+         POP_CREF (); 
+         POP_VARS (); 
+         POP_SCOPE (); 
+         POP_CLASS (); 
+         pop FRAME 
+     end 
+     return result; 
+) 
+</pre> 
+
+
+<p> 
+<code> node-&gt; nd_next </code> $ B $ r <code> rb_eval () </code> $ B $ 7 $ F $ $ $ k $ N $ G $ 3 $ l $,% b% 8% e ! &lt;% kJ8K \ BN $ N% 3! &lt;% I $ G 
+  $ B $ "$ k $ 3 $ H $ O $$$$$ H $ 7 $ h $ &amp;! # LdBj $ O $ = $ l0J30 $ @! # 8 + $ k $ Y $-%]%$% s% H $ O8 ^ $ D $ "$ k! # 
+</p> 
+
+<ul> 
+<li> <code> PUSH_SCOPE () PUSH_VARS () </code> $ B $ G5 / $ 3 $ k $ 3 $ H </li> 
+<li> $ B $ I $ &amp; $ d $ C $ F% m !&lt;%+% kJQ? tNN0h $ r3d $ jEv $ F $ F $ $ $ k $ + </li> 
+<li> <code> PUSH_CLASS () </code> $ B $ N8z2L </li> 
+<li> <code> ruby_cref </code> $ B $ H <code> ruby_frame-&gt; cbase </code> $ B $ N4X78 </li> 
+<li> <code> ruby_frame </code> $ B $ r $ $ $ 8 $ C $ F2? $ r $ 7 $ F $ $ $ k $ N $ + </li> 
+</ul> 
+
+<p> 
+  $ B = gHV $ KD4:: $ 7 $ F $ $ $ 3 $ &amp;! # 
+</p> 
+
+
+
+<h3> $ B% m !&lt;%+% kJQ? t% 9% 3! &lt;% W $ N @ 8 @. </h3> 
+
+<p> 
+<code> PUSH_SCOPE () </code> $ B $,% m !&lt;%+% kJQ? tNN0h $ r @ Q $_!"&lt; code&gt; PUSH_VARS ()  $ B $,% V% m % C% /% m !&lt;%+% k 
+  $ BJQ? TNN0h $ r @ Q $ `$ o $ 1 $@$+$ i!" $ 3 $ NFs $ D $ G? 7 $ 7 $ $% m !&lt;%+% kJQ? T% 9% 3! &lt;% W $,: n $ j 
+  $ B = P $ 5 $ l $ k $ 3 $ H $ K $ J $ k! # $ 3 $ l $ i $ N %^%/% m $ NCf? H $ rDI $ C $ F! "<b:] $="" k2?="" r="" 7="" f="" b="" k="" n="" +8="" +="" _="" h="" &!="" #="" <="" p=""> 
+
+</b:]></p><p class="caption"> $ B " '<code> PUSH_SCOPE () POP_SCOPE () </code> </p> 
+<pre class="longlist"> 
+  852 # define PUSH_SCOPE () do (\ 
+  853 volatile int _vmode = scope_vmode; \ 
+  854 struct SCOPE * volatile _old; \ 
+  855 NEWOBJ (_scope, struct SCOPE); \ 
+  856 OBJSETUP (_scope, 0, T_SCOPE); \ 
+  857 _scope-&gt; local_tbl = 0; \ 
+  858 _scope-&gt; local_vars = 0; \ 
+  859 _scope-&gt; flags = 0; \ 
+  860 _old = ruby_scope; \ 
+  861 ruby_scope = _scope; \ 
+  862 scope_vmode = SCOPE_PUBLIC 
+
+  869 # define POP_SCOPE () \ 
+  870 if (ruby_scope-&gt; flags &amp; SCOPE_DONT_RECYCLE) (\ 
+  871 if (_old) scope_dup (_old); \ 
+  872) \ 
+  873 if (! (Ruby_scope-&gt; flags &amp; SCOPE_MALLOC)) (\ 
+  874 ruby_scope-&gt; local_vars = 0; \ 
+  875 ruby_scope-&gt; local_tbl = 0; \ 
+  876 if (! (Ruby_scope-&gt; flags &amp; SCOPE_DONT_RECYCLE) &amp; &amp; \ 
+  877 ruby_scope! = Top_scope) (\ 
+  878 rb_gc_force_recycle ((VALUE) ruby_scope); \ 
+  879) \ 
+  880) \ 
+  881 ruby_scope-&gt; flags | = SCOPE_NOSTACK; \ 
+  882 ruby_scope = _old; \ 
+  883 scope_vmode = _vmode; \ 
+  884) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> SCOPE </code> $ B $ b%?% 0 $ H0l = o $ G !"%^% 7% s% 9%?% C% / $ HF14 | $ 5 $; $ F% 9%? % C% / $ r: n $ j = P $ 7 $ F $ $ 
+  $ B $ k $ h $&amp;$@!#$?$HyL / $ K0c $ &amp; $ N $ O! "$ 3 $ A $ i $ O% 9%?% C% /% U% l! &lt;% `$ NNN0h &lt;+ BN $ O% R! &lt; 
+  $ B% W $ + $ i3NJ] $ 7 $ F $ * $ j! "% 9%?% C% / 9 = B $ $ r: n $ j = P $ 9 $? $ A $ K% ^% 7% s% 9%?% C% / $ r; H $ C 
+  $ B $ F $ $ $ k $ H $$$&amp;$ H $ 3 $ m $ @ $ m $ &amp;! J? ^ 5 $ B! K! # 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_scopestack.jpg" alt="(scopestack)"> <br> 
+  $ B? ^ 5: $ B% ^% 7% s% 9%?% C% / $ HSCOPE $ B% 9%?% C% / 
+</p> 
+
+<p> 
+  $ B $ = $ l $ H %^%/% m $ NCf $ G2? EY $ b = P $ F $ / $ k <code> SCOPE_ </code> $ B $ J $ s $? $ I $ H $$$&amp;% U% i% 0 $ K $ D $ $ $ F $ O! " 
+  $ B3F% 9%?% C% /% U% l !&lt;%`$ N5-217A &lt;0 $ H% V% m% C% / $ N $ 3 $ H $ rA4 $ FOC $ 7 $ F $ + $ i $ G $ J $ $ $ H 
+  $ B @ bL @ $ G $ - $ J $ $! # Bh16 $ B&gt; O! X% V% m% C% /! Y $ G $ ^ $ H $ a $ F $ d $ k $ 3 $ H $ K $ 9 $ k! # 
+</p> 
+
+
+
+<h3> $ B% m !&lt;%+% kJQ? tNN0h $ N3NJ] </h3> 
+
+<p> 
+  $ B2? EY $ b8 @ $ C $ F $ $ $ kDL $ j% m !&lt;%+% kJQ? T% 9% 3! &lt;% W $ O <code> struct SCOPE </code> $ B $ GI = $ 5 $ l $ k $ N 
+  $ B $@$,!"&lt; code&gt; struct SCOPE  $ B $ OJ8; zDL $ j! V% 9% 3! &lt;% W! W $ G $ "$ C $ F!"% M! &lt;% +% kJQ? t $ r 
+  $ B3JG &lt;$ 9 $ k <bbn$,$j$$!#$b$&$a$g$c$hd> Y # E * $ K8 @ $ &amp; $ H! "NN0h $ X $ N%]% $% s%? $ O 
+  $ B $ "$ C $ F $ b $ = $ N @ h $ NG [Ns $, $ J $ $ $ N $@!#$=$ NG [Ns $ r =` Hw $ 7 $ F $ $ $ k $ N $, 
+<code> module_setup () </code> $ B $ N <!-- $ NItJ, $ G $ "$ k! # 
+</p--> 
+
+</bbn$,$j$$!#$b$&$a$g$c$hd></p><p class="caption"> $ B " '% m !&lt;%+% kJQ? t% 9% m% C% H $ N =` Hw </p> 
+<pre class="longlist"> 
+3444 if (node-&gt; nd_tbl) ( 
+3445 VALUE * vars = TMP_ALLOC (node-&gt; nd_tbl [0] +1); 
+3446 * vars + + = (VALUE) node; 
+3447 ruby_scope-&gt; local_vars = vars; 
+3448 rb_mem_clear (ruby_scope-&gt; local_vars, node-&gt; nd_tbl [0]); 
+3449 ruby_scope-&gt; local_tbl = node-&gt; nd_tbl; 
+3450) 
+3451 else ( 
+3452 ruby_scope-&gt; local_vars = 0; 
+3453 ruby_scope-&gt; local_tbl = 0; 
+3454) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+  $ BKAF, $ N <code> TMP_ALLOC () </code> $ B $ O <!-- $ N9 `$ G8 + $ k! # 0l8 @ $ G8 @ $ & $ H! V3N <B $ K% 9%?% C% / $ K 
+  $ B3d $ jEv $ F $ F $ / $ l $ k! J =--> $ C $ FGC $ B $ r9MN8 $ 7 $ J $ / $ F $ h $ $! K <code> alloca () </code> $ B! W $ @! # 
+</p> 
+
+<p> 
+  $ B $ = $ l $ G <code> node-&gt; nd_tbl </code> $ B $ K $ O <b$obh12 $b=""> O! X9 = J8LZ $ N9 = C [! Y $ G $ d $ C $?% M !&lt;%+% kJQ? TL&gt; $ N 
+  $ B% F! &lt;% V% k $, F ~ $ C $ F $ $ $ k! # $ D $ ^ $ j <code> nd_tbl [0] </code> $ B $ K% F! &lt;% V% k% 5 %$%:$, F ~ $ C $ F $ $ $ F! " 
+  $ B; D $ j $ O <code> ID </code> $ B $ NG [Ns $ K $ J $ C $ F $ $ $ k !#$=$ N% F! &lt;% V% k $ O <code> SCOPE </code> $ B $ N <code> local_tbl </code> $ B $ K $ = $ N 
+  $ B $ ^ $ ^ 0 \? "$ 7 !"$^$?% m !&lt;%+% kJQ? T $ NCM $ r3JG &lt;$ 9 $ k $? $ A $ K <code> local_vars </code> $ B $ r3d $ jEv $ F 
+  $ B $ F $ $ $ k $ h $&amp;$@!#$ 3 $ N $"$?$ j $ OJ6 $ i $ o $ 7 $ $ $ N $ G! V $ 3 $ C $ A $, JQ? TL &gt;! W! V $ 3 $ C $ A $, CM! W 
+  $ B $ H = q $ -9 ~ $ s $ G $*$/$ H $$$$!#&lt; code&gt; tbl  $ B $, IU $/$[$&amp;$, L&gt; A0 $ G $ "$ k! # 
+</b$obh12></p> 
+
+<p> 
+  $ B $ 5 $ F! "<code> Local_vars </code> $ B $ N3d $ jEv $ F $ r: Y $ + $ / 8 + $ F $ _ $ h $&amp;!#&lt; code&gt; local_tbl [0]  $ B $,% m! &lt;% + 
+  $ B% kJQ? T $ N? T $@$+$ i! "$ J $&lt;$+% 5 %$%:$ r +1 $ B $ 7 $ F3d $ jEv $ F $ F $ $ $ k! # $ 3 $ 3 $ K $ O: # EY $ O 
+<code> module_setup () </code> $ B $ N0z? t <code> node </code> $ B! J <code> NODE_SCOPE </code> $ B! K $ rF ~ $ l $ F $ $ $ k $ h $&amp;$@!# 
+  $ B $ D $ ^ $ j $ 3 $ NJ8 $,=*$ o $ C $? $ H $ 3 $ m $ G? ^ 6 $ B $ N $ h $ &amp; $ K $ J $ k! # 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_localvars.jpg" alt="(localvars)"> <br> 
+  $ B? ^ 6: <code> ruby_scope-&gt; local_vars </code> 
+</p> 
+
+<p> 
+  $ B $ 3 $ N <code> node </code> $ B $ O $ I $ 3 $ G; H $ o $ l $ F $ $ $ k $ N $ @ $ m $ &amp;! # 
+<code> local_vars </code> $ B% a% s% P $ r @ v $ C $ F $_$?$,&lt; code&gt; eval.c  $ B $ G $ O% $% s % G% C% /% 9 <code> -1 </code> $ B $ X $ N %"%/%;% 9 $ O 
+  $ B8 + Ev $? $ I $ J $ $! # BP&gt;]% U %!%$% k $ r9-$ 2 $ F $ _ $ k $ H! "<code> Gc.c </code> $ B $ G %"%/%;% 9 $ 7 $ F $$$?!# 
+</p> 
+
+<p class="caption"> $ B " '<code> rb_gc_mark_children () </code> $ B! = <code> T_SCOPE </code> </p> 
+<pre class="longlist"> 
+  815 case T_SCOPE: 
+  816 if (obj-&gt; as.scope.local_vars &amp; &amp; 
+             (obj-&gt; as.scope.flags &amp; SCOPE_MALLOC)) ( 
+  817 int n = obj-&gt; as.scope.local_tbl [0] +1; 
+  818 VALUE * vars = &amp; obj-&gt; as.scope.local_vars [-1]; 
+  819 
+  820 while (n -) ( 
+  821 rb_gc_mark (* vars); 
+  822 vars + +; 
+  823) 
+  824) 
+  825 break; 
+
+(gc.c) 
+</pre> 
+
+
+<p> 
+  $ B $ D $ ^ $ j $ I $ &amp; $ d $ i $ 3 $ l $ O <code> node </code> $ B $ rGC $ B $ + $ iJ] 8n $ 9 $ k $? $ A $ N ; E3] $ 1 $ i $ 7 $$!#$@$,$ J $&lt;%^!&lt; 
+  $ B% / $ 7 $ J $ $ $ H $ $ $ 1 $ J $ $ $ N $ @ $ m $&amp;!#&lt; code&gt; node  $ B $ O $ o $ 6 $ o $ 6 <code> volatile </code> $ B $ J% m !&lt;%+% kJQ? t $ KF ~ $ l 
+  $ B $ F $ "$ k $ N $@$+$ i!" <code> Module_setup () </code> $ B $ N <b9tcf $="" ogc="" b="" 5="" l="" j="" o="" $:="" g="" "$="" k!="" #="" <="" p=""> 
+
+</b9tcf></p><p> 
+  $ B @ 5D&gt; $ K8 @ $ &amp; $ HI. <t $="" o="" 7="" p="" i="" oc1="" j="" k4v0c="" $$$@$="" m="" &="" h;="" w="" c="" f="" $?="" n="" $@$,!"="" b="" <b="" h="" b0ul="" #$,$"$="" k="" 3="" $,="" +="" $?!="" #="" ldbj="" <!="" n9t="" l="" @!="" <=""> 
+
+</t></p><p class="caption"> $ B " '<code> ruby_scope-&gt; local_tbl </code> </p> 
+<pre class="longlist"> 
+3449 ruby_scope-&gt; local_tbl = node-&gt; nd_tbl; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+  $ B% Q! &lt;% 5 $ GMQ0U $ 7 $?% M !&lt;%+% kJQ? TL&gt; $ N% F! &lt;% V% k $ r $ = $ N $^$^; H $ C $ F $ $ $ k! # $ 3 $ N% F! &lt; 
+  $ B% V% k $ O $ $ $ D2rJ | $ 5 $ l $ k $ N $ @ $ m $&amp;!#$=$ l $ O $ 3 $ N <code> node </code> $ B $,; 2&gt; H $ 5 $ l $ J $ / $ J $ C $? $ H $ - $ G 
+  $ B $ "$ k! # $ G $ O <code> node </code> $ B $ O $ $ $ D2rJ | $ 5 $ l $ k $ Y $-$@$ m $&amp;!#$=$ l $ O $ 3 $ N9T $ GBeF ~ $ r9T $ C $? 
+<code> SCOPE </code> $ B $, A4 $ F&gt; C $ ($ F $ + $ i $ G $ "$ k! # $ G $ O $ = $ l $ O $ $ $ D $ N $ 3 $ H $ @ $ m $&amp;$+!# 
+</p> 
+
+<p> 
+<code> SCOPE </code> $ B $ O $ = $ l $, @ 8 @. $ 5 $ l $ k860x $ K $ J $ C $? J8 $ h $ j $ bD9 @ 8 $ - $ 9 $ k $ 3 $ H $,$"$ k! # 
+  $ BBh16 $ B&gt; O! X% V% m% C% /! Y $ G @ bL @ $ 9 $ k $ H $ * $ j! "<code> Proc </code> $ B% *% V% 8 %'%/% H $ r @ 8 @. $ 9 $ k $ H $ = 
+  $ B $ 3 $ + $ i <code> SCOPE </code> $ B $,; 2&gt; H $ 5 $ l $ k $ + $ i $@!#$ D $ ^ $ j <code> module_setup () </code> $ B $,=*$ o $ C $ F $ b $ = 
+  $ B $ 3 $ G: n $ C $? <code> SCOPE </code> $ B $, MQ: Q $ _ $ K $ J $ k $ H $ O8B $ i $ J $$!#$@$+ $ i <code> node </code> $ B $ O 
+<code> module_setup () </code> $ B! J $ N% 9%?% C% /% U% l !&lt;%`! K $ + $ i; 2&gt; H $ 5 $ l $ F $ $ $ k $ @ $ 1 $ G $ OIT == J, 
+  $ B $ G! "<code> SCOPE </code> $ B $ + $ i! VD&gt; @ \ $ K! W; 2&gt; H $ 5 $ l $ F $ $ $ J $ / $ F $ O $ J $ i $ J $ $ $ N $ @! # 
+</p> 
+
+<p> 
+  $ B $^$?$=$ N0lJ) $ G% m !&lt;%+% kJQ? T $ N <code> volatile node </code> $ B $ b30 $; $ J $$!#$ G $ J $ $ $ H 
+<code> local_vars </code> $ B $ KBeF ~ $ 9 $ k $ ^ $ G $ N $"$$$@&lt; code&gt; node  $ B $, Ch $ KIb $ $ $ F $ 7 $ ^ $ &amp; # 
+
+</p><p> 
+  $ B $ 7 $ + $ 7 !"$=$ l $ J $ i: # EY $ O <code> SCOPE </code> $ B $ N <code> local_vars </code> $ B $,$^$:$ $ $ N $ G $ O $ J $$$@$ m $&amp;$+!# 
+<code> TMP_ALLOC () </code> $ B $ O8 @ $ C $? $ H $ * $ j% 9%?% C% / 3d $ jEv $ F $ J $ N $ G! "<code> module_setup () </code> $ B $ N 
+  $ B =* N; $ HF1; ~ $ KL58z $ K $ J $ C $ F $ 7 $^$&amp;!#$ 3 $ l $, <b $="" o!="" "<code=""> Proc  $ B $ r @ 8 @. $ 7 $?; ~ E @ $ G 
+  $ B $$$-$ J $ j <code> malloc () </code> $ B3d $ jEv $ F $ K @ Z $ jBX $ ($ k $ h $ &amp; $ K $ J $ C $ F $ $ $ k $ N $@!#&gt; \ $ 7 $ $ $ 3 $ H $ O 
+  $ BBh16 $ B&gt; O! X% V% m% C% /! Y $ G2r @ b $ 9 $ k! # 
+
+</b></p><p><b $="" o!="" "<code=""> 
+  $ B $ = $ 7 $ F: G8e $ K! "<code> Rb_mem_clear () </code> $ B $ O0 $ B = <e6 $="" +="" h;="" w="" $$$-$="" d="" <b="" o="" <code=""> VALUE  $ B $ NG [Ns $ K 
+  $ BBP $ 9 $ k <code> Qnil </code> $ B = <e6 $="" g="" "$="" k!="" j="" <code=""> array.c  $ B! K! # $ 3 $ l $ GA4 $ F $ NDj5A: Q $ _% m !&lt;%+% kJQ? T $, 
+<code> nil </code> $ B $ K = i4 | 2 = $ 5 $ l $ k! # 
+</e6></e6></b></p><b $="" o!="" "<code=""> 
+
+
+
+<h3> <code> TMP_ALLOC () </code> </h3> 
+
+<p> 
+  $ B <!-- $ K% m !<%+% kJQ? T $ NNN0h $ r <B:] $ K3d $ jEv $ F $ F $$$?< code--> TMP_ALLOC ()  $ B $ rFI $ b $ &amp;! # 
+  $ B $ 3 $ N %^%/% m $ O <b $="" o="" <code=""> module_setup ()  $ B $ N: G = i $ N $[$&amp;$ K $ R $ C $ = $ j $ HB8: _ $ 9 $ k 
+<code> TMP_PROTECT </code> $ B $ HAH $ K $ J $ C $ F $ $ $ k! # E57? E * $ J; H $$$+$?$ O $ 3 $&amp;$@!# 
+</b></p><b $="" o="" <code=""> 
+
+<pre class="emlist"> 
+VALUE * ptr; 
+TMP_PROTECT; 
+
+ptr = TMP_ALLOC (size); 
+</pre> 
+
+<p> 
+  $ B $ J $ &lt;<code> TMP_PROTECT </code> $ B $,% m !&lt;%+% kJQ? TDj5A $ N0LCV $ K $ "$ k $ + $ H $$$&amp;$ H! D! D 
+  $ BDj5A $ r8 + $ F $ _ $ h $ &amp;! # 
+</p> 
+
+<p class="caption"> $ B " '<code> TMP_ALLOC () </code> </p> 
+<pre class="longlist"> 
+1769 # ifdef C_ALLOCA 
+1770 # define TMP_PROTECT NODE * volatile tmp__protect_tmp = 0 
+1771 # define TMP_ALLOC (n) \ 
+1772 (tmp__protect_tmp = rb_node_newnode (NODE_ALLOCA, \ 
+1773 ALLOC_N (VALUE, n), tmp__protect_tmp, n), \ 
+1774 (void *) tmp__protect_tmp-&gt; nd_head) 
+1775 # else 
+1776 # define TMP_PROTECT typedef int foobazzz 
+1777 # define TMP_ALLOC (n) ALLOCA_N (VALUE, n) 
+1778 # endif 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+  $ B! D! D% m !&lt;%+% kJQ? T $ rDj5A $ 7 $ F $ $ $ k $ + $ i! # $ H $$$&amp;$ N $, Ez $($@!# 
+</p> 
+
+<p> 
+  $ BBh5 $ B&gt; O! X %,!]% Y! &lt;% 8% 3% l% /% 7% g% s! Y $ G2r @ b $ 7 $? $ H $ * $ j! "<code> # ifdef C_ALLOCA </code> $ B $ N! J% M% $% F% #% V $ N 
+<code> alloca () </code> $ B $, $ J $ $! K4D6-$ G $ O <code> malloc () </code> $ B $ G <code> alloca () </code> $ B $ r %(%_% e% l! &lt;% H $ 7 $ F $ $ $ k! # 
+  $ B $ 7 $ + $ 7% a% =% C% I $ N0z? T $ H $$$&amp;$ N $ OEvA3 <code> VALUE </code> $ B $ G $ "$ j!"% R! &lt; % W $ K <code> VALUE </code> $ B $ rCV $ $ 
+  $ B $ F $ 7 $^$&amp;$ HGC $ B $ G8! = P $ G $ - $ J $ / $ J $ C $ F $ 7 $^$&amp;!#$=$ 3 $ G <code> NODE </code> $ B $ r7PM3 $ 7 $ FL5M) LpM) 
+GC $ B $ NBP&gt;] $ K $ 9 $ k! J? ^ 7 $ B! K! # 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_tmpprotecttmp.jpg" alt="(tmpprotecttmp)"> <br> 
+  $ B? ^ 7: <code> NODE </code> $ B7PM3 $ GNN0h $ r% 9%?% C% / $ KHK $.;_$ a $ k 
+</p> 
+
+<p> 
+  $ B0lJ }!"??$ N <code> alloca () </code> $ B $,$"$ k4D6-$ G $ OIaDL $ K <code> alloca () </code> $ B $ r; H $ ($ P $$$$$ N $ G 
+<code> TMP_PROTECT </code> $ B $ OI, MW $ J $$!#$=$ 3 $ GL532 $ J &lt;0 $ rE, Ev $ KF ~ $ l $ F $*$/!# 
+
+</p><p> 
+  $ B $ H $ 3 $ m $ G! "$ J $ &lt;$ 3 $ 3 $ ^ $ G $ 7 $ F <code> alloca () </code> $ B $ r; H $$$?$,$ k $ N $ @ $ m $&amp;$+!# 
+  $ B $ = $ NM) M3 $ OC1 $ K! V <code> alloca () </code> $ B $ N $[$&amp;$,&lt; code&gt; malloc ()  $ B $ h $ jB .$$$+$ i! W $@$=$&amp;$@!# 
+  $ B $ = $ N $ / $ i $ $ $ N0c $ $ $ O $ I $ &amp; $ G $ b $$$$$ h $ &amp; $ J5 $ $ b $ 9 $ k $ N $@$,!" $ J $ K $ 7 $ m 
+  $ BI&gt; 2A4o% 3% "$ O <code> ruby </code> $ B: GBg $ N% \% H% k% M% C% / $ J $ N $ G!" 0J2 <f1j8! #="" <="" p=""> 
+
+
+
+</f1j8!></p><h3> $ B% a% =% C% IDj5A @ h $ NJQ99 </h3> 
+
+<p> 
+  $ B% 9%?% C% / <code> ruby_class </code> $ B $ NCM $,$=$ N $ H $ - $ N% a% =% C% I $ NDj5A @ h% /% i % 9 $ K $ J $ k! # 5U $ K8 @ 
+  $ B $ &amp; $ H <code> ruby_class </code> $ B $ KCM $ r% W% C% 7% e $ 9 $ k $ HDj5A @ h% /% i% 9 $, JQ $ o $ k! # $ = $ l $ 3 $=$,%/% i 
+  $ B% 9J8 $ KI, MW $ J $ 3 $ H $@!#=&gt;$ C $ F <code> module_setup () </code> $ B $ G $ b <code> PUSH_CLASS () </code> $ B $ 7 $ J $ 1 $ l $ P $ J $ i 
+  $ B $ J $$!#$=$ l $, $ 3 $ N% 3! &lt;% I $ @! # 
+</p> 
+
+<pre class="emlist"> 
+PUSH_CLASS (); 
+ruby_class = module; 
+       $ B! ' 
+       $ B! ' 
+POP_CLASS (); 
+</pre> 
+
+<p> 
+  $ B $ J $ &lt;<code> PUSH_CLASS () </code> $ B $ 7 $ F $ + $ i <code> ruby_class </code> $ B $ K2 ~ $ a $ FBeF ~ $ 7 $ F $ $ $ k $ N $ @ $ m $ &amp;! # 
+  $ B $ 3 $ l $ ODj5A $ r8 + $ k $ H0U30 $ H $ "$ C $ 5 $ j $ o $ + $ k! # 
+</p> 
+
+<p class="caption"> $ B " '<code> PUSH_CLASS () POP_CLASS () </code> </p> 
+<pre class="longlist"> 
+  841 # define PUSH_CLASS () do (\ 
+  842 VALUE _class = ruby_class 
+
+  844 # define POP_CLASS () ruby_class = _class; \ 
+  845) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> PUSH_CLASS () </code> $ B $ 7 $ F $ b <code> ruby_class </code> $ B $, = q $ -49 $ o $ k $ o $ 1 $ G $ O $ J $ $ $ N $ G !"$=$ N $ "$ H $ K <j $="" b="" g%;%="" c%="" h="" 7="" j="" hk="" \="" ev="" k%="" w%="" 7%="" e="" $?="" 3="" k="" i="" n="" @!="" #$@$+$="" nfs="" d="" o="" b!="" v%="" !&%]%="" w!="" w="" $$$&$="" o!="" vj]="" b8!="" &="" |="" 5="" "!="" k6a="" $!="" #="" <="" p=""> 
+
+</j></p><p> 
+<code> PUSH_CLASS () </code> $ B $ N0z? t $ K% /% i% 9 $ rEO $ 9 $ h $ &amp; $ K $ 9 $ l $ P $ b $ C $ H $ - $ l $ $ $ J %^%/% m $ K $ J 
+  $ B $ k $ 8 $ c $ J $$$+! D! D $ H $$$&amp;$ N $ OA4 $/$=$ NDL $ j $ J $ N $@$,!"% W% C% 7% e $ 9 $ kA0 $ K% /% i% 9 
+  $ B $, F @ $ i $ l $ J $ $&gt; l = j $,$"$ k $? $ A $ K $ 3 $&amp;$$$&amp;$ 3 $ H $ K $ J $ C $ F $ $ $ k! # 
+</p> 
+
+
+
+<h3> $ B% /% i% 9 $ N% M% 9% H </h3> 
+
+<p> 
+<code> ruby_cref </code> $ B $ O <b9tcf$n% %i%9%m%9%h=""> pJs $ rI = 8 = $ 7 $ F $ $ $ k $ N $ @ $ C $? # 
+  $ B $@$+$ i% b% 8% e! &lt;% KJ8 $ d% /% i% 9J8 $ G <code> ruby_cref </code> $ B $, @ Q $ ^ $ l $ k $ N $ OEvA3M = A [$ G $ - $ k! # 
+<code> module_setup () </code> $ B $ G $ O $ 3 $ s $ J $ U $ &amp; $ K @ Q $ s $ G $$$?!# 
+</b9tcf$n%></p> 
+
+<pre class="emlist"> 
+PUSH_CREF (module); 
+ruby_frame-&gt; cbase = (VALUE) ruby_cref; 
+     $ B! ' 
+     $ B! ' 
+POP_CREF (); 
+</pre> 
+
+<p> 
+  $ B $ 3 $ 3 $ G! "<code> Module </code> $ B $ ODj5ACf $ N% b% 8% e! &lt;% K $ G $" $ k! # 
+<code> PUSH_CREF () </code> $ B $ H <code> POP_CREF () </code> $ B $ NDj5A $ b8 + $ F $ * $ 3 $ &amp;! # 
+</p> 
+
+<p class="caption"> $ B " '<code> PUSH_CREF () POP_CREF () </code> </p> 
+<pre class="longlist"> 
+  849 # define PUSH_CREF (c) \ 
+           ruby_cref = rb_node_newnode (NODE_CREF, (c), 0, ruby_cref) 
+  850 # define POP_CREF () ruby_cref = ruby_cref-&gt; nd_next 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> PUSH_SCOPE () </code> $ B $ J $ I $ N $ h $ &amp; $ J $ H $ s $ G $ b $ J $ $ 9) IW $,$"$ k $ o $ 1 $ G $ b $ J $ /! " 
+  $ BHs&gt; o $ K07 $ $ $ d $ 9 $$!#$ d $ O $ j $?$^$ K $ O $ 3 $&amp;$$$&amp;$ N $ b $ J $ $ $ H: $ $ k # 
+</p> 
+
+<p> 
+  $ B $ 9 $ k $ H; D $ kLdBj $ O <code> ruby_frame-&gt; cbase </code> $ B $, 2? $ R0UL # $ 7 $ F $ $ $ k $ N $ + $ H $ $ $ &amp; $ 3 $ H $@$,!" 
+  $ B $ 3 $ l $ O8 =: _ $ N <code> FRAME </code> $ BFb $ + $ iDj? T $ d% /% i% 9JQ? T $ r; 2&gt; H $ 9 $ k $ N $ K; H $ &amp;&gt; pJs $ G $ "$ k! # 
+  $ B&gt; \ $ 7 $ $ $ 3 $ H $ OK \&gt; O $ N: G8e $ N @ a $ G8 + $ F $$$/!# 
+</p> 
+
+
+
+<h3> $ B% U% l !&lt;%`$ N $ 9 $ j $+$(</h3> 
+
+<p> 
+  $ B: G8e $ K <code> ruby_frame </code> $ B $ NA `: n $ KCmL \ $ 9 $ k !#$^$:$ ODj5A $ N $ H $ 3 $ m $ + $ i! # 
+</p> 
+
+<pre class="emlist"> 
+struct FRAME frame; 
+</pre> 
+
+<p> 
+  $ B %]%$% s%? $ G $ O $ J $$!#$ D $ ^ $ j $ 3 $ l $ O% ^% 7% s% 9%?% C% /&gt; e $ K &lt; code&gt; FRAME  $ B $ r% Y%? CV $ - $ G3NJ] 
+  $ B $ 9 $ k $ H $ $ $ &amp; 0UL # $ G $ "$ k! # Ruby $ B% 9%?% C% / $ N4IM) 9 = B $ $ b% m !&lt;%+% kJQ? TNN0h $ b% ^% 7% s 
+  $ B% 9%?% C% /&gt; e $ @ $ C $?$,!"$ J $ s $ H <code> FRAME </code> $ B $ K; j $ C $ F $ O9 = B $ BN $ ^ $ k $ 4 $ H% 9%?% C% /&gt; e $ KCV 
+  $ B $ $ $ F $ 7 $^$*$&amp;$ H $$$&amp;$ N $@!#&lt; code&gt; ruby  $ B $,%^% 7% s% 9%?% C% / $ r% P %+?)$$$ 9 $ k $ N $ b $ 3 $&amp;$$$&amp; 
+  $ B! V&gt;. $ 5 $ J9) IW! W $, @ Q $ _ = E $ J $ C $? @ .2 L $ J $ N $ G $ "$ k! # 
+</p> 
+
+<p> 
+  $ B $ = $ 7 $ F <!-- $ K <code--> frame  $ B $ r2? $ D $ i $ $ $ m $ $ $ m $ 7 $ F $ $ $ k $ H $ 3 $ m $ r8 + $ h $ &amp;! # 
+</p> 
+
+<pre class="emlist"> 
+frame = * ruby_frame; / * $ B9 = B $ BN $ ^ $ k $ 4 $ H% 3% T! &lt;* / 
+frame.tmp = ruby_frame; / * $ B85 $ NFRAME $ B $ rGC $ B $ + $ iJ] 8n $ 9 $ k * / 
+ruby_frame = &amp;frame; / * ruby_frame $ B $ r: 9 $ 7BX $ ($ k * / 
+         $ B! ' 
+         $ B! ' 
+ruby_frame = frame.tmp; / * $ BLa $ 9 * / 
+</pre> 
+
+<p> 
+  $ B $ D $ ^ $ j <code> ruby_frame </code> $ B $ r0l; ~ E * $ K: 9 $ 7BX $ ($ F $ $ $ k! J% W% C% 7% e $ G $ O $ J $ $! K $ h $&amp;$@!#$ I 
+  $ B $ &amp; $ 7 $ F $ 3 $ s $ J $ 3 $ H $ r $ 7 $ F $ $ $ k $ N $ @ $ m $ &amp;! # 
+</p> 
+
+<p> 
+<code> FRAME </code> $ B $ H $$$&amp;$ N $ O! V% a% =% C% I8F $ S = P $ 7 $ G @ Q $ ^ $ l $ k! W $ H @ bL @ $ 7 $?$,!"$ h $ j87L) $ K 
+  $ B8 @ $ &amp; $ H! VRuby $ B% W% m% 0% i% `$ r <b9t $="" 9="" k="" $&$($="" g="" n="" <g="" j4d6-!="" w="" ri="$" 9%="" ?%="" c%="" %="" u%="" l!="" <%="" `="" b="" j="" @!="" #="" nc="" ($="" p="" @="" hdx="P" f="" $-$?<="" code=""> ruby_frame-&gt; cbase  $ B $ J $ I $ r8 + $ k $ H $ =$&amp;$$$&amp; 0UL # 9g $ $ $, 
+  $ B8 + $ F <h$l$k!#b> $ K $ b! V: G8e $ K8F $ s $ @% a% =% C% IL&gt;! W $ rI = $ 9 <code> last_func </code> $ B $ J $ I $ b $=$&amp;$@!# 
+</h$l$k!#b></b9t></p> 
+
+<p> 
+  $ B $ G $ O $ I $ &amp; $ 7 $ F $ 3 $ 3 $ GAGD&gt; $ K <code> FRAME </code> $ B $ r @ Q $ ^ $ J $$$+$ H $$$&amp;$ H ! "$ 3 $ 3 $ O <code> FRAME </code> $ B $ r @ Q $ s $ G 
+  $ B $$$$&gt; l = j $ G $ O $ J $$$+$ i $ G $ "$ k! #; EAH $_$+$ i8 @ $ ($ PK \ Ev $ O <code> FRAME </code> $ B $ r @ Q $_$?$$$ o $ 1 
+  $ B $@$,!"&lt; code&gt; FRAME  $ B $ r @ Q $ `$ HNc30 $, H / @ 8 $ 7 $? $ H $ - $ K% W% m% 0% i% `$ N% P% C% /% H% l! &lt;% 9 $ K $ = 
+  $ B $ l $, = P $ F $ 7 $^$&amp;!#% P% C% /% H% l! &lt;% 9 $ H $$$&amp;$ N $ O <!-- $ N $ h $ & $ JI = <($ N $ 3 $ H $ @! # 
+</p--> 
+
+</p><pre class="screen"> 
+% Ruby t.rb 
+t.rb: 11: in `c ': some error occured (ArgumentError) 
+         from t.rb: 7: in `b ' 
+         from t.rb: 3: in `a ' 
+         from t.rb: 14 
+</pre> 
+
+<p> 
+  $ B $ 7 $ + $ 7% b% 8% e! &lt;% KJ8 $ d% /% i% 9J8 $ O% a% =% C% I8F $ S = P $ 7 $ G $ O $ J $$$+$ i $ 3 $ NCf $ K $ O 
+  $ B = P $ F $ - $ F $ [$ 7 $ / $ J $$!#$@$+$ i! V @ Q $^$:$ K! W! "! V: 9 $ 7BX $ ($ k! W $ o $ 1 $ @! # 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> $ B% a% =% C% I $ NDj5A </h2> 
+
+<p> 
+  $ B% b% 8% e! &lt;% KDj5A $ N <!-- $ O% a% =% C% I $ NDj5A $ r8 + $ F $$$/$ 3 $ H $ K $ 7 $ h $ &! # 
+</p--> 
+
+</p><h3> $ BD4:: </h3> 
+
+<p class="caption"> $ B "'%=!&lt;% 9% W% m% 0% i% `</p> 
+<pre class="longlist"> 
+def m (a, b, c) 
+   nil 
+end 
+</pre> 
+
+
+<p class="caption"> $ B " 'BP1 ~ $ 9 $ k9 = J8LZ </p> 
+<pre class="longlist"> 
+NODE_DEFN 
+nd_mid = 9617 (m) 
+nd_noex = 2 (NOEX_PRIVATE) 
+nd_defn: 
+     NODE_SCOPE 
+     nd_rval = (null) 
+     nd_tbl = 5 [_ ~ a b c] 
+     nd_next: 
+         NODE_ARGS 
+         nd_cnt = 3 
+         nd_rest = -1 
+         nd_opt = (null) 
+         NODE_NIL 
+</pre> 
+
+
+<p> 
+  $ B $$$/$ D $+%@% s% W $ 7 $ F $_$?$ H $ 3 $ m! "<code> Nd_defn </code> $ B $ K $ O&gt; o $ K <code> NODE_SCOPE </code> $ B $, F ~ $ C $ F 
+  $ B $ $ $ k $ h $&amp;$@!#&lt; code&gt; NODE_SCOPE  $ B $ H8 @ $ ($ P% b% 8% e! &lt;% KJ8 $ N $ H $ 3 $ m $ G $ b8 + $? $ h $ &amp; $ K% m! &lt; 
+  $ B% +% kJQ? T% 9% 3! &lt;% W $ r @ Q $`$?$ a $ N&gt; pJs $ r3JG &lt;$ 9 $ k% N! &lt;% I $ G $ "$ k! # 
+</p> 
+
+
+
+<h3> <code> NODE_DEFN </code> </h3> 
+
+<p> 
+  $ BB3 $ $ $ F <code> rb_eval () </code> $ B $ N3: Ev% 3! &lt;% I $ r8 + $ F $$$/!#%(% i! &lt;= HM) $, $ d $? $ iB? $ / $ F 
+  $ BLLE] $ @ $ C $? $ N $ G: F $ SA4It $ ^ $ H $ a $ F&gt; JN, $ 7 $?! # 
+  $ B $ = $ NJ) K! $ O $ $ $ D $ b $ HF1 $ 8 $ G $ "$ k! # B ($ A <code> rb_raise () rb_warn () rb_warning () </code> $ B $ r8F $ V 
+  $ B $ @ $ 1 $ N $ b $ N !"$*$ h $ S4V @ \ E * $ K $ = $ l $ r8F $ V $ b $ N $ rA4It&gt; C $ 7 $?! # 
+</p> 
+
+<p class="caption"> $ B " '<code> rb_eval () </code> $ B!] <code> NODE_DEFN </code> $ B! J4JLsHG! K </p> 
+<pre class="longlist"> 
+NODE * defn; 
+int noex; 
+
+if (SCOPE_TEST (SCOPE_PRIVATE) | | node-&gt; nd_mid == init) ( 
+     noex = NOEX_PRIVATE; $ B! JA $ B! K 
+) 
+else if (SCOPE_TEST (SCOPE_PROTECTED)) ( 
+     noex = NOEX_PROTECTED; $ B! JB $ B! K 
+) 
+else if (ruby_class == rb_cObject) ( 
+     noex = node-&gt; nd_noex; $ B! JC $ B! K 
+) 
+else ( 
+     noex = NOEX_PUBLIC; $ B! JD $ B! K 
+) 
+
+defn = copy_node_scope (node-&gt; nd_defn, ruby_cref); 
+rb_add_method (ruby_class, node-&gt; nd_mid, defn, noex); 
+result = Qnil; 
+</pre> 
+
+
+<p> 
+  $ BA0H&gt; $ K $ O <code> private </code> $ B $ @ $ N <code> protected </code> $ B $ @ $ N $ H $ $ $ &amp; C18l $, = P $ F $ / $ k $ N $ G2D; k 
+  $ B @-4X78 $ @ $ m $&amp;!#% U% i% 0 $ NL&gt; A0 $ K; H $ o $ l $ F $ $ $ k <code> noex </code> $ B $ O &lt; code&gt; NOde EXposure  $ B! J% N! &lt; 
+  $ B% I $ N2D; k @ -! K $ @ $ H; W $ o $ l $ k! # <code> If </code> $ BJ8 $ N @ a $ r = gHV $ K8 + $ F $ $ $ 3 $ &amp; # 
+</p> 
+
+<p> 
+  $ B! JA $ B! K <code> SCOPE_TEST () </code> $ B $ O <code> scope_vmode </code> $ B $ K0z? T $ N% U% i% 0 $, N) $ C $ F $ $ $ k $ +3 NG '$ 9 $ k 
+  $ B %^%/% m $ G $ "$ k !#=&gt;$ C $ F $ 3 $ N&gt; r7oJ8 $ NA0H&gt; $ O! V <code> private </code> $ B% 9% 3! &lt; % W $ G $ "$ k $ +! W $ H 
+  $ B $ $ $ &amp; 0UL #$@!# 8eH&gt; $ O! V <code> initialize </code> $ B $ NDj5A $ J $ i <code> private </code> $ B! W $ G $ "$ k !#%*% V% 8% ' 
+  $ B% /% H $ N = i4 | 2 = MQ% a% =% C% I <code> initialize </code> $ B $ OLdEzL5MQ $ G <code> private </code> $ B $ K $ J $ k $ N $ @! # 
+</p> 
+
+<p> 
+  $ B! JB $ B! K <code> protected </code> $ B% 9% 3! &lt;% W $ @ $ C $? $ I <code> protected </code> $ B! J $ "$? $ j $^$(! K! # 
+Ruby $ B $ G $ O <code> protected </code> $ B $ O $$$^$$$ A; H $ $ <j $,="" $="" j="" h="" &="" j5="" 9="" k!="" #="" <="" p=""> 
+
+</j></p><p> 
+  $ B! JC $ B! K $ 3 $ 3 $ O% P% 0 $ C $ F $ $ $ k! # K \ = q $ NF ~ 9FD&gt; A0 $ KH / 8 + $ 7 $? $ N $ G = $ @ 5 $ O4V $ K9g $ o $ J 
+  $ B $ + $ C $?!#: G? 7 $ N% 3! &lt;% I $ G $ O $ J $ / $ J $ C $ F $ $ $ k $ O $:$@!#% H % C% W% l% Y% k $ GDj5A $ 5 $ l $? 
+  $ B% a% =% C% I $ r3N <b $="" k="" <code=""> private  $ B $ K $ 7 $ h $ &amp; $ H $ 7 $?!"$ H $$$&amp;$ N $, 85! 9 $ N0U? ^ $ G $ "$ k! # 
+</b></p><b $="" k="" <code=""> 
+
+<p> 
+  $ B! JD $ B! K $ 3 $ l $ ^ $ G $ N $ I $ l $ G $ b $ J $ + $ C $? $ I! "<code> Public </code> $ B $ @! # 
+
+</p><p> 
+  $ B $ 5 $ F! "<b $="" o="" 3="" ^="" g="" i="" &="" b="" $$$$!#="EMW" j="" n="" <!="" nfs9t="" "$="" k!="" #="" <="" p=""> 
+
+</b></p><pre class="emlist"><b $="" o="" 3="" ^="" g="" i="" &="" b="" $$$$!#="EMW" j="" n="" <!="" nfs9t="" "$="" k!="" #="" <="" p=""> 
+defn = copy_node_scope (node-&gt; nd_defn, ruby_cref); 
+rb_add_method (ruby_class, node-&gt; nd_mid, defn, noex); 
+</b></pre><b $="" o="" 3="" ^="" g="" i="" &="" b="" $$$$!#="EMW" j="" n="" <!="" nfs9t="" "$="" k!="" #="" <="" p=""> 
+
+<p> 
+<code> copy_node_scope () </code> $ B $ O% a% =% C% IK \ BN $ N @ hF, $ KIU $ $ $ F $ $ $ k 
+<code> NODE_SCOPE </code> $ B! J $ @ $ 1! K $ r 
+  $ B% 3% T! &lt;$ 9 $ k4X? T $@!#&lt; code&gt; ruby_cref  $ B $ rEO $ 7 $ F $ $ $ k $ H $ 3 $ m $,%]%$% s% H $ J $ N $ @ 
+  $ B $,! D! D&gt; \ $ 7 $ / $ O $ 9 $ 08e $ G8 + $ F $$$/!# 
+</p> 
+
+<p> 
+  $ B% 3% T! &lt;$ 7 $?$"$ H !"$=$ l $ r <code> rb_add_method () </code> $ B $ GDI2C $ 9 $ l $ PDj5A $ O40N; $ G $ "$ k! # 
+  $ BDj5A $ 9 $ k @ h $ O $ b $ A $ m $ s <code> ruby_class </code> $ B $ @! # 
+</p> 
+
+
+
+<h3> <code> copy_node_scope () </code> </h3> 
+
+<p> 
+<code> copy_node_scope () </code> $ B $ O <code> rb_eval () </code> $ B $ N% a% =% C% IDj5A! J <code> NODE_DEFN </code> $ B! K $ H 
+  $ BFC0 [% a% =% C% IDj5A! J <code> NODE_DEFS </code> $ B! K $ @ $ 1 $ + $ i8F $ P $ l $ k $ N $ G !"$=$ NFs% v = j $ @ $ 1 
+  $ B8 + $ l $ P; H $ o $ l $+$?$ rFCDj $ G $ - $ k !#$=$ 7 $ F $ = $ NFs% v = j $ G $ N; H $$$+$ ? $ O $ [$ \ 
+  $ BF1 $ 8 $ @! # 
+</p> 
+
+<p class="caption"> $ B " '<code> copy_node_scope () </code> </p> 
+<pre class="longlist"> 
+1752 static NODE * 
+1753 copy_node_scope (node, rval) 
+1754 NODE * node; 
+1755 VALUE rval; 
+(1756 
+1757 NODE * copy = rb_node_newnode (NODE_SCOPE, 0, rval, node-&gt; nd_next); 
+1758 
+1759 if (node-&gt; nd_tbl) ( 
+1760 copy-&gt; nd_tbl = ALLOC_N (ID, node-&gt; nd_tbl [0] +1); 
+1761 MEMCPY (copy-&gt; nd_tbl, node-&gt; nd_tbl, ID, node-&gt; nd_tbl [0] +1); 
+1762) 
+1763 else ( 
+1764 copy-&gt; nd_tbl = 0; 
+1765) 
+1766 return copy; 
+1767) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+  $ B0z? T $ N <code> rval </code> $ B $ O% a% =% C% I $, Dj5A $ 5 $ l $?;~$ N% /% i% 9 $ N% M% 9 % H&gt; pJs! J <code> ruby_cref </code> $ B! K 
+  $ B $ @ $ C $?!#&lt; code&gt; nd_rval  $ B $ K%;% C% H $ 5 $ l $ k $ + $ i <code> rval </code> $ B $ H $ $ $ &amp; $ 3 $ H $ @ $ m $ &amp;! # 
+</p> 
+
+<p> 
+  $ BK \ BN $ N <code> if </code> $ BJ8 $ G $ O <code> NODE_SCOPE </code> $ B $ N <code> nd_tbl </code> $ B $ r% 3% T! &lt; $ 7 $ F $ $ $ k! # $ D $ ^ $ j% m !&lt;%+% k 
+  $ BJQ? TL&gt; $ N% F! &lt;% V% k $ G $ "$ k! # <code> ALLOC_N () </code> $ B $ G +1 $ B $ 7 $ F $ $ $ k $ N $ O <code> nd_tbl [0] </code> $ B $ NJ, $ b9g 
+  $ B $ o $; $ F3NJ] $ 9 $ k $? $ A $ @! # BhFsIt $ G8 + $? $ H $ * $ j <code> nd_tbl [0] </code> $ B $ K $ O% m !&lt;%+% kJQ? t $ N 
+  $ B? T $, F ~ $ C $ F $ * $ j !"$=$ l $ O $ D $ ^ $ j! V <code> nd_tbl </code> $ B $ N <b:] $="" nd9="" 5-1="" b!="" w="" @="" c="" $?!="" #="" <="" p=""> 
+
+</b:]></p><p> 
+  $ B $ ^ $ H $ a $ k $ H! "<code> Copy_node_scope () </code> $ B $ O% a% =% C% IK \ BN $ N% X% C% @ $ G $" $ k <code> NODE_SCOPE </code> $ B $ r 
+  $ BJ # @ = $ 9 $ k !"$?$@$ 7 <code> nd_rval </code> $ B $, DI2C $ G%;% C% H $ 5 $ l $ k !#$=$ 7 $ F $ = $ l $ O% /% i% 9 $ rDj5A 
+  $ B $ 7 $? $ H $ - $ N <code> ruby_cref </code> $ B! J% /% i% 9 $ N% M% 9% H&gt; pJs! K $ G $ "$ k! # $ 3 $ N&gt; pJs $ O8e $ GDj? T $ d 
+  $ B% /% i% 9JQ? T $ N; 2&gt; H $ N $ H $ - $ K; H $ o $ l $ k! # 
+</p> 
+
+
+
+<h3> <code> rb_add_method () </code> </h3> 
+
+<p> 
+  $ B <!-- $ K% a% =% C% I% (% s% H% j $ rEPO? $ 9 $ k4X? T <code--> rb_add_method ()  $ B $ @! # 
+</p> 
+
+<p class="caption"> $ B " '<code> rb_add_method () </code> </p> 
+<pre class="longlist"> 
+  237 void 
+  238 rb_add_method (klass, mid, node, noex) 
+  239 VALUE klass; 
+  240 ID mid; 
+  241 NODE * node; 
+  242 int noex; 
+  243 ( 
+  244 NODE * body; 
+  245 
+  246 if (NIL_P (klass)) klass = rb_cObject; 
+  247 if (ruby_safe_level&gt; = 4 &amp; &amp; 
+               (klass == rb_cObject | |! OBJ_TAINTED (klass))) ( 
+  248 rb_raise (rb_eSecurityError, "Insecure: can't define method"); 
+  249) 
+  250 if (OBJ_FROZEN (klass)) rb_error_frozen ( "class / module"); 
+  251 rb_clear_cache_by_id (mid); 
+  252 body = NEW_METHOD (node, noex); 
+  253 st_insert (RCLASS (klass) -&gt; m_tbl, mid, body); 
+  254) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> NEW_METHOD () </code> $ B $ O <code> NODE </code> $ B $ r @ 8 @. $ 9 $ k %^%/% m $ @! # 
+<code> rb_clear_cache_by_id () </code> $ B $ O% a% =% C% I% -% c% C% 7% e $ rA `: n $ 9 $ k4X? t $ G $" $ k! # 
+  $ B <!----> O! X% a% =% C% I! Y $ G @ bL @ $ 9 $ k! # 
+</p> 
+
+<p> 
+  $ B $ G $ O! ": G =* E * $ K% /% i% 9 $ N <code> m_tbl </code> $ B $ K3JG &lt;$ 5 $ l $ k9 = J8LZ $ r8 + $ F $ _ $ h $ &amp;! # 
+  $ B $ 3 $&amp;$$$&amp;$ H $ - $ N $? $ A $ KMQ0U $ 7 $ F $*$$$? 
+<code> nodedump-method </code> \ footnote (<code> nodedump-method </code> $ B! '<code> nodedump </code> $ B $ KF1 :-!#&lt; code&gt; nodedump  $ B $ OE: IUCD-ROM $ B $ N <code> tools / nodedump.tar.gz </code>) $ B $ r 
+  $ B; H $ &amp;! # 
+</p> 
+
+<pre class="screen"> 
+% Ruby-e ' 
+class C 
+   def m (a) 
+     puts "ok" 
+   end 
+end 
+require "nodedump-method" 
+NodeDump.dump C,: m # $ B% /% i% 9C $ B $ N% a% =% C% Im $ B $ r% @% s% W $ 9 $ k 
+' 
+NODE_METHOD 
+nd_noex = 0 (NOEX_PUBLIC) 
+nd_cnt = 0 
+nd_body: 
+     NODE_SCOPE 
+     nd_rval = Object &lt;- C 
+     nd_tbl = 3 [_ ~ a] 
+     nd_next: 
+         NODE_ARGS 
+         nd_cnt = 1 
+         nd_rest = -1 
+         nd_opt = (null) 
+         U $ B2g &amp; n S $ BprCx 
+
+
+** Unhandled ** 
+
+
+</pre> 
+
+<p> 
+  $ B62 $ i $ /% a% =% C% I $ N% X% C% @ $ r0UL # $ 9 $ k $ N $ @ $ m $&amp;!"&lt; code&gt; NODE_METHOD  $ B $, @ hF, $ KIU $ $ $ F 
+  $ B $ * $ j !"$=$ N <!-- $ K @ hDx <code--> copy_node_scope ()  $ B $ G% 3% T! &lt;$ 7 $? <code> NODE_SCOPE </code> $ B $, IU $ /! # 
+  $ B $$$/$ D $+%@% s% W $ 7 $ F $_$?$ H $ 3 $ mC $ B $ GDj5A $ 7 $?% A% =% C% I $ K $ O <code> NODE_SCOPE </code> $ B $ OIU $ $ $ F 
+  $ B $ $ $ J $ + $ C $? $ N $ G! "$ 3 $ l $, Ruby $ B% l% Y% k $ GDj5A $ 7 $?% A% =% C% I $ N0u $ i $ 7 $ $ # 
+</p> 
+
+<p> 
+  $ B $^$?&lt; code&gt; NODE_SCOPE  $ B $ N <code> nd_tbl </code> $ B $ K% a% =% C% I $ N% Q% i% a! &lt;%? JQ? TL&gt;! J <code> a </code> $ B! K $, EP&gt; l $ 7 
+  $ B $ F $ $ $ k! # 0JA0! "% Q% i% a! &lt;%? JQ? T $ OIaDL $ N% m !&lt;%+% kJQ? T $ HF1 $ 8 $ @ $ H8 @ $ C $?$,!"$= 
+  $ B $ l $, $ 3 $ 3 $ KC <e *="" $="" k="P" f="" o="" 1="" @!="" #="" <="" p=""> 
+
+</e></p><p> 
+<code> NODE_ARGS </code> $ B $ K $ D $ $ $ F $ O <!-- $ N <!--> O! X% a% =% C% I! Y $ G07 $ &amp; $ N $ G&gt; JN , # 
+</p> 
+
+<p> 
+  $ B $ = $ l $ H: G8e $ K <code> NODE_METHOD </code> $ B $ N <code> nd_cnt </code> $ B $@$,!"$ 3 $ l $ O: # 2s $ O $"$^$ j5 $ $ K $ 7 $ J $ / 
+  $ B $ F $$$$!#&lt; code&gt; alias  $ B $,$+$ i $ s $ @ $ H $ - $ K; H $ &amp; $ b $ N $ @! # 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> $ BBeF ~ $ H; 2&gt; H </h2> 
+
+<p> 
+  $ B9M $ ($ F $ _ $ l $ P% 9%?% C% / $ N $ [$ H $ s $ I $ O3F <ojq? t="" $="" r="" <b8="$" 9="" k="" $?="" a="" kb8="" :="" _="" o="" 1="" b="" $@!#$="" 3="" ^="" g="" m="" m%="" 9%?%="" c%="" @="" q="" h="" &="" j="" c="" n="" g!="" ":="" #="" ey="" ojq?="" t;="" 2=""> H 
+  $ B $ N% 3! &lt;% I $ r8 + $ F $ $ $ 3 $ &amp;! # 
+</ojq?></p> 
+
+
+<h3> $ B% m !&lt;%+% kJQ? t </h3> 
+
+<p> 
+  $ B% m !&lt;%+% kJQ? T $ NBeF ~! &amp;; 2&gt; H $ KI, MW $ J&gt; pJs $ O $ 3 $ 3 $ ^ $ G $ GA4 $ F 
+  $ BEP&gt; l $ 7 $ F $ $ $ k $ N $ GM = B, $, IU $/$@$ m $&amp;!#%]%$% s% H $ O0J2 &lt;$ NFsE$@!# 
+</p> 
+
+<ol> 
+<li> $ B% m !&lt;%+% kJQ? tNN0h $ O <code> ruby_scope-&gt; local_vars </code> $ B $,; X $ 9G [Ns $ G $ "$ k! # </li> 
+<li> $ B% m !&lt;%+% kJQ? tL&gt; $ HG [Ns% $% s% G% C% /% 9 $ NBP1 ~ $ O% Q! &lt;% 5% l% Y% k $ G2r7h: Q $_!#</li> 
+</ol> 
+
+<p> 
+  $ B $ H $$$&amp;$ 3 $ H $ G% m !&lt;%+% kJQ? T; 2&gt; H $ N% N! &lt;% I <code> NODE_LVAR </code> $ B $ N% 3! &lt;% I $ O $ 3 $ &amp; $ J $ k! # 
+</p> 
+
+<p class="caption"> $ B " '<code> rb_eval () </code> $ B!] <code> NODE_LVAR </code> </p> 
+<pre class="longlist">2975 case NODE_LVAR: 
+2976 if (ruby_scope-&gt; local_vars == 0) ( 
+2977 rb_bug ( "unexpected local variable"); 
+2978) 
+2979 result = ruby_scope-&gt; local_vars [node-&gt; nd_cnt]; 
+2980 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Needless to say I think <code> node-&gt; nd_cnt </code> is 
+Parser <code> local_cnt () </code> was value in return. 
+</p> 
+
+
+
+<h3> constant </h3> 
+
+<h4> full version </h4> 
+
+<p> 
+Chapter 6, and a constant variable in the constant format and store information about the API. Kula is a constant 
+Su belong to the same method to inherit. It is all too real 
+<code> struct RClass </code>-<code> iv_tbl </code> instance variable and variable with class registration 
+In that. 
+</p> 
+
+<p> 
+But the constant search for the path out of first class, and then wonder, in the superclass 
+To, <code> rb_const_get () </code>, was not the only super class. I'm 
+It? It is constant talk about the hidden spoken about the final version 
+The must-have. Look at the following code. 
+</p> 
+
+<pre class="emlist"> 
+class A 
+   C = 5 
+   def A.new 
+     puts C 
+     super 
+   end 
+end 
+</pre> 
+
+<p> 
+<code> A.new </code> is <code> A </code> belonging to the specific method of class-specific classes are <code> (A) </code>. 
+So if you interpret the rules as <code> A </code> belong to a constant <code> C </code> is not to win. 
+</p> 
+
+<p> 
+But if you write this nearly constant <code> C </code> want to see it's only natural. 
+Ruby is therefore also refer to this. These specifications are "SOSUKO 
+I looked for the de-emphasize "reflects the character of Ruby be said. 
+</p> 
+
+<p> 
+This rule, he generalize. That is about the method of constant internal field 
+If the method definition of "writing" as a starting point to the location of the class outside of class constants 
+About. And "Methods class where I wrote" Oh, is context-dependent 
+Resona parser and evaluator of information unless handle both. That's <code> rb_const_get () </code> outside 
+The search path is no reason for class. 
+</p> 
+
+<h4> <code> cbase </code> </h4> 
+
+<p> 
+So outside of class, including the constant references to look at the code. 
+<code>:: </code> constant references are usually standing in the syntax tree <code> NODE_CONST </code> said. 
+<code> rb_eval () </code>, said the code is…… 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_CONST </code> </p> 
+<pre class="longlist"> 
+2994 case NODE_CONST: 
+2995 result = ev_const_get (RNODE (ruby_frame-&gt; cbase), node-&gt; nd_vid, self); 
+2996 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+First <code> nd_vid </code> is <code> Variable ID </code> a constant name. And <code> ruby_frame-&gt; cbase </code> is 
+"I wrote a method to define the location of the class." This is a method to start 
+Will be set when the code is still have not appeared in the set 
+Where the project is coming from, or even to say, this method is defined 
+<code> copy_node_scope () </code>, came <code> nd_rval </code> for both sides. Come back and see a little head 
+If the thing, but this method is to define when a member of <code> ruby_cref </code> will be 
+. 
+</p> 
+
+<p> 
+In other words, first class and when the module definition <code> ruby_cref </code> links to 
+Formed. Now a defined class <code> C </code> and out (Fig. 81). 
+</p> 
+
+<p> 
+This method <code> m </code> to define and (probably <code> C # m </code>), 
+Then <code> ruby_cref </code> method is stored in the entry (Fig. 82). 
+</p> 
+
+<p> 
+After the subsequent statement class <code> ruby_cref </code> points to a different node, but will not, 
+<code> node-&gt; nd_rval </code> is of course continue the same points (Fig. 83). 
+</p> 
+
+<p> 
+And methods <code> C # m </code> is when you start <code> node-&gt; nd_rval </code>, retrieve, 
+Just loaded <code> ruby_frame-&gt; cbase </code> to Cart (Fig. 84). 
+</p> 
+
+<p> 
+…… Of the mechanism. Confusing. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_cbase.jpg" alt="(cbase)"> <br> 
+Figure 8: CREF transfer 
+</p> 
+
+
+<h4> <code> ev_const_get () </code> </h4> 
+
+<p> 
+, <code> NODE_CONST </code> back to the code. 
+The rest are <code> ev_const_get () </code> just to see it. 
+</p> 
+
+<p class="caption"> ▼ <code> ev_const_get () </code> </p> 
+<pre class="longlist"> 
+1550 static VALUE 
+1551 ev_const_get (cref, id, self) 
+1552 NODE * cref; 
+1553 ID id; 
+1554 VALUE self; 
+(1555 
+1556 NODE * cbase = cref; 
+1557 VALUE result; 
+1558 
+1559 while (cbase &amp; &amp; cbase-&gt; nd_next) ( 
+1560 VALUE klass = cbase-&gt; nd_clss; 
+1561 
+1562 if (NIL_P (klass)) return rb_const_get (CLASS_OF (self), id); 
+1563 if (RCLASS (klass) -&gt; iv_tbl &amp; &amp; 
+                   st_lookup (RCLASS (klass) -&gt; iv_tbl, id, &amp; result)) ( 
+1564 return result; 
+1565) 
+1566 cbase = cbase-&gt; nd_next; 
+1567) 
+1568 return rb_const_get (cref-&gt; nd_clss, id); 
+1569) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Arguments <code> cref </code>, that is the original <code> ruby_cref </code>, is <code> NODE </code> of a linked list. 
+The list of the direct Tasoritsuku <code> st_lookup () </code>, <code> iv_tbl </code> to find out. Suu outside of class 
+調べないpar until the class because of their specifications, <code> rb_const_get () </code> does not. 
+</p> 
+
+<p> 
+And <code> klass </code> is <code> nil </code>…… So when a top-level lights and other nesting 
+Because the class to determine the direction of the superclass. This is 
+<code> rb_const_get () </code> the first time. 
+</p> 
+
+<p> 
+Moreover, when the super class examine a reversal in the direction of the <code> self </code> is a starting point. 
+Really confusing. 
+</p> 
+
+
+
+<h3> class variable </h3> 
+
+<p> 
+Class at a variable <code> ruby_cref </code>. However, of course, constant as the outside 
+And looking for the next class because they do not use the first one. Class variable 
+References node, <code> NODE_CVAR </code>, let's take a look at the code. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_CVAR </code> </p> 
+<pre class="longlist"> 
+2998 case NODE_CVAR: 
+2999 result = rb_cvar_get (cvar_cbase (), node-&gt; nd_vid); 
+3000 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> cvar_cbase () </code> What is it? <code> cbase </code> and know where to look 
+<code> ruby_frame-&gt; cbase </code> and the relationship is going to happen, how different? Let's see. 
+</p> 
+
+<p class="caption"> ▼ <code> cvar_cbase () </code> </p> 
+<pre class="longlist"> 
+1571 static VALUE 
+1572 cvar_cbase () 
+(1573 
+1574 NODE * cref = RNODE (ruby_frame-&gt; cbase); 
+1575 
+1576 while (cref &amp; &amp; cref-&gt; nd_next &amp; &amp; 
+                  FL_TEST (cref-&gt; nd_clss, FL_SINGLETON)) ( 
+1577 cref = cref-&gt; nd_next; 
+1578 if (! Cref-&gt; nd_next) ( 
+1579 rb_warn ( "class variable access from toplevel singleton method"); 
+1580) 
+1581) 
+1582 return cref-&gt; nd_clss; 
+1583) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Class is not specific to <code> cbase </code> traced back to the picture. 
+This is following a number of measures added. 
+</p> 
+
+<pre class="emlist"> 
+class C class C 
+   @ @ cvar = 1 @ @ cvar = 1 
+   class &lt;<c def="" c.m="" m="" @="" cvar="" end="" c.m2="" m2="" +="" <="" pre=""> 
+
+<p> 
+This program is both right and left to write the same methods are also defined. 
+But an increasing number of right書きかたmethod is often the class to write: Yes 
+Not only pain in the neck. So when you define more specific method to the left 
+Class-specific definitions in one place, many of them. 
+</p> 
+
+<p> 
+However, the two is how to write <code> ruby_cref </code> values are different. Define a specific use 
+It is <code> ruby_cref = (C) </code> and dismembered-specific methods, it is 
+<code> ruby_cref = C </code>. This class is variable at the inconvenience it has changed. 
+</p> 
+
+<p> 
+So, class, class-specific variables can not and will not judge 
+The specific class is it that leap. Here again inconsistent. 
+Resona's designed to emphasize ease of use that way. 
+</p> 
+
+<p> 
+By the way, if the constant references to find out from all classes and both書きかた 
+<code> C </code> path into the search, so no problem. The assignment of more method in the first place 
+This is unrelated to write. 
+</p> 
+
+
+
+<h3> multiple assignment </h3> 
+
+<p> 
+Ruby, Where's the most complex specifications, and immediately asked if I have to answer multiple assignment. 
+The multiple assignment It's impossible to grasp the whole picture. I think so thin. YOUSURUNI, 
+Multiple assignment of the entire design specifications are designed to clean out an involuntary not the God PAKASHIMO 
+Being made. The new standards will always be "some typical use PERTH 
+In turn would be useful behavior. " This is true of the entire Ruby, multi - 
+That is particularly noticeable weight assignment. 
+</p> 
+
+<p> 
+Then how do you choose a dense forest in order to spare code? This is a state with a scanner 
+I like to read, seen as a whole. It is not the whole picture, but 
+, The overall picture you can not. To cut the number thingy, the Caux 
+- This is a specification for the design of this code is here to be a…… 
+Respond point by point the way to getting on it. 
+</p> 
+
+<p> 
+But this is <code> ruby </code> comprehensive understanding of the structure of the book, even though the Ruby programming 
+Advanced level, not too little thing you do not have no choice. So here 
+Multiple assignment, the fundamental structure and a very simple "many-to-many" if only to consider 
+Especially now. 
+</p> 
+
+<p> 
+First of all street construction staple will be able to see from a tree. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+a, b = 7, 8 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree </p> 
+<pre class="longlist"> 
+NODE_MASGN 
+nd_head: 
+     NODE_ARRAY [ 
+     0: 
+         NODE_LASGN 
+         nd_cnt = 2 
+         nd_value: 
+     1: 
+         NODE_LASGN 
+         nd_cnt = 3 
+         nd_value: 
+     ] 
+nd_value: 
+     NODE_REXPAND 
+     nd_head: 
+         NODE_ARRAY [ 
+         0: 
+             NODE_LIT 
+             nd_lit = 7: Fixnum 
+         1: 
+             NODE_LIT 
+             nd_lit = 8: Fixnum 
+         ] 
+</pre> 
+
+
+<p> 
+Both are left-hand right-hand <code> NODE_ARRAY </code> list, 
+The right side <code> NODE_REXPAND </code> even know. <code> REXPAND </code> is Right value EXPAND? 
+The nodes are doing or what to worry about it. Let's see. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_REXPAND </code> </p> 
+<pre class="longlist"> 
+2575 case NODE_REXPAND: 
+2576 result = avalue_to_svalue (rb_eval (self, node-&gt; nd_head)); 
+2577 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> avalue_to_svalue () </code> ignore the good. 
+<code> rb_eval () </code>, <code> NODE_ARRAY </code> is evaluated by the (literal array of nodes it is so) 
+Ruby's return to the array. So before you handle the left side are all evaluated by the right side 
+It's not. That is why the following can be. 
+</p> 
+
+<pre class="emlist"> 
+a, b = b, a # write a single line variable swap 
+</pre> 
+
+<p> 
+Left-hand side, <code> NODE_MASGN </code> also look at. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_MASGN </code> </p> 
+<pre class="longlist"> 
+2923 case NODE_MASGN: 
+2924 result = massign (self, node, rb_eval (self, node-&gt; nd_value), 0); 
+2925 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+This is the right term rating is the only remaining <code> massign () </code> delegates. 
+</p> 
+
+<h4> <code> massign () </code> </h4> 
+
+<p class="caption"> ▼ <code> massi </code>…… </p> 
+<pre class="longlist"> 
+3917 static VALUE 
+3918 massign (self, node, val, pcall) 
+3919 VALUE self; 
+3920 NODE * node; 
+3921 VALUE val; 
+3922 int pcall; 
+(3923 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+I'm sorry, in the middle of the list, but here it stopped paying attention to the fourth argument. 
+<code> pcall </code> is <code> Proc CALL </code>, means that this function is <code> Proc </code> calls for the use of objects 
+We have to see if the host country. <code> Proc </code> and other calls for the multiple assignment 
+Check the severity is somewhat different, so I ask them to check the flags of the 
+The reason. Naturally, the value is either 0 or 1 reason. 
+</p> 
+
+<p> 
+So recalled <code> massign () </code> number of calls, but I'd like to see, <code> pcall = 0 </code>. Resona 
+In the meantime it is <code> pcall = 0 </code> beat and decided to expand the variables are already a構わ 
+INO to be. That's because, <code> pcall </code> it behaves like a subtle change to the argument 
+And the two have always read the scenario and thinking but also in very面倒く 
+And. Even if the actual function <code> massign () </code> is one thing, even when it is read 
+<code> pcall = 0 </code> and <code> pcall = 1 </code> if the two functions have thought that it is much easier to read. 
+</p> 
+
+<p> 
+When the program is是非ともduplication should be avoided, but when you read 
+Only to have nothing to do with the principle. If the pattern is rather limited copy 
+Redundant and it is correct. "Optimized for speed," "code of size 
+Optimization "of the word, but in this case" optimized for readability " 
+. 
+</p> 
+
+<p> 
+So <code> pcall = 0 </code> as shaving all of his削れるbelow. 
+</p> 
+
+<p class="caption"> ▼ <code> massign () </code> (condensed version) </p> 
+<pre class="longlist"> 
+static VALUE 
+massign (self, node, val / *, pcall = 0 * /) 
+     VALUE self; 
+     NODE * node; 
+     VALUE val; 
+( 
+     NODE * list; 
+     long i = 0, len; 
+
+     val = svalue_to_mvalue (val); 
+     len = RARRAY (val) -&gt; len; 
+     list = node-&gt; nd_head; 
+     / * (A) * / 
+     for (i = 0; list &amp; &amp; i <len; i="" +="" +)="" (="" assign="" (self,="" list-=""> nd_head, RARRAY (val) -&gt; ptr [i], pcall); 
+         list = list-&gt; nd_next; 
+     ) 
+     / * (B) * / 
+     if (node-&gt; nd_args) ( 
+         if (node-&gt; nd_args == (NODE *) -1) ( 
+             / * No check for mere `* '* / 
+         ) 
+         else if (! list &amp; &amp; i <len) (="" assign="" (self,="" node-=""> nd_args, 
+                    rb_ary_new4 (len-i, RARRAY (val) -&gt; ptr + i), pcall); 
+         ) 
+         else ( 
+             assign (self, node-&gt; nd_args, rb_ary_new2 (0), pcall); 
+         ) 
+     ) 
+
+     / * (C) * / 
+     while (list) ( 
+         i + +; 
+         assign (self, list-&gt; nd_head, Qnil, pcall); 
+         list = list-&gt; nd_next; 
+     ) 
+     return val; 
+) 
+</len)></len;></pre> 
+
+
+<p> 
+<code> val </code> value to the right side. Also <code> svalue_to_mvalue () </code> converted to a suspicious fire that the 
+We are <code> mvalue_to_svalue () </code>, this is <code> svalue_to_mvalue () </code> So, "I'm sure rejoined 
+It should be "considered. Therefore, both away at once. The next line 
+<code> RARRAY () </code> from using the right side of the value of Ruby <code> Array </code> and I heard a 
+Feel frisky. Meanwhile the left side <code> node-&gt; nd_head </code>, means that local variables <code> list </code> has been assigned to 
+Value. This <code> list </code> also node (<code> NODE_ARRAY </code>). 
+</p> 
+
+<p> 
+The following is a code to follow every clause. 
+</p> 
+
+<p> 
+(A) <code> assign () </code> name of the street, one-on-one assignment of functions. Is no left-hand 
+Mode of expression that, for example <code> NODE_IASGN </code> (Variable instance) 
+And <code> rb_ivar_set () </code> in the assignment, so I do. Ie, 
+<code> list </code> and <code> val </code> it to meet one-on-one short of the assignment 
+(Fig. 9). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_module_massign.jpg" alt="(massign)"> <br> 
+Figure 9: response to the assignment 
+</p> 
+
+<p> 
+(B) if the right side on one's hands rest on an array of Ruby <code> node-&gt; nd_args </code> (of expression 
+To the left side) assignment. 
+</p> 
+
+<p> 
+(C) If the left side on one's hands all <code> nil </code> is assigned. 
+</p> 
+
+<p> 
+By the way, <code> pcall = 0 </code> to cut back on the work of compiler optimization phase 
+Use data-flow analysis / convolution and the constant look-alike. That is automated to some extent 
+I think you can. 
+</p> 
+
+
+<hr>
+<p>
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp; additions,&nbsp; and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+</p>
+
+
+</c></pre>
+
