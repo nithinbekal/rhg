@@ -1,0 +1,886 @@
+
+<body>
+<h1>Chapter 16: block</h1>
+<font size="+3" color="BLUE">Blue Chapter -- Machine Translation</font>
+
+<h2> iterator </h2> 
+
+<p> 
+This chapter is Ruby stack seven of the last big book, <code> BLOCK </code> appeared. 
+After this evaluation found that the state of internal organs than alive. 
+</p> 
+
+
+<h3> overall picture </h3> 
+
+<p> 
+Iterators what it is that? 
+First, following a small program think. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+iter_method () do 
+   # 9 blocks in landmark 
+end 
+</pre> 
+
+
+<p> 
+Want to check the terms. To the point of this program <code> iter_method </code> is 
+ITERETAMESODDO, <code> do </code> in <code> end </code> is ITERETABUROKKU. 
+The program for use if this happened to the dump. 
+</p> 
+
+<p class="caption"> ▼ corresponding syntax tree </p> 
+<pre class="longlist"> 
+NODE_ITER 
+nd_iter: 
+     NODE_FCALL 
+     nd_mid = 9617 (iter_method) 
+     nd_args = (null) 
+nd_var = (null) 
+nd_body: 
+     NODE_LIT 
+     nd_lit = 9: Fixnum 
+</pre> 
+
+
+<p> 
+ITERETABUROKKU written in block 9 to try to find手書Hypothetically speaking, 
+<code> NODE_ITER </code> is likely to represent the ITERETABUROKKU, and understandable. And 
+<code> iter_method </code> calling <code> NODE_FCALL </code> that <code> NODE_ITER </code> "below." - 
+Marika calls ITERETAMESODDO more than ITERETABUROKKU nodes 
+First. It is ITERETAMESODDO before the call is blocked, 
+RERURASHII win another node. 
+</p> 
+
+<p> 
+The code debugger, we'll check the flow of it, the start iterator 
+This <code> NODE_ITER NODE_CALL </code> in <code> NODE_YIELD </code> were divided into three phases that 
+. It is namely 
+</p> 
+
+<ol> 
+<li> block load (<code> NODE_ITER </code>) </li> 
+<li> a method of calling iterator (<code> NODE_CALL </code>) </li> 
+<li> <code> yield </code> (<code> NODE_YIELD </code>) </li> 
+</ol> 
+
+<p> 
+. 
+</p> 
+
+
+
+<h3> block to push </h3> 
+
+<p> 
+First of all phases of the first block to gain nodes, 
+<code> NODE_ITER </code> look at it from you. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_ITER </code> (condensed version) </p> 
+<pre class="longlist"> 
+case NODE_ITER: 
+   ( 
+     iter_retry: 
+       PUSH_TAG (PROT_FUNC); 
+       PUSH_BLOCK (node-&gt; nd_var, node-&gt; nd_body); 
+
+       state = EXEC_TAG (); 
+       if (state == 0) ( 
+           PUSH_ITER (ITER_PRE); 
+           result = rb_eval (self, node-&gt; nd_iter); 
+           POP_ITER (); 
+       ) 
+       else if (_block.tag-&gt; dst == state) ( 
+           state &amp; = TAG_MASK; 
+           if (state == TAG_RETURN | | state == TAG_BREAK) ( 
+               result = prot_tag-&gt; retval; 
+           ) 
+       ) 
+       POP_BLOCK (); 
+       POP_TAG (); 
+       switch (state) ( 
+         case 0: 
+           break; 
+
+         case TAG_RETRY: 
+           goto iter_retry; 
+
+         case TAG_BREAK: 
+           break; 
+
+         case TAG_RETURN: 
+           return_value (result); 
+           / * Fall through * / 
+         default: 
+           JUMP_TAG (state); 
+       ) 
+   ) 
+   break; 
+</pre> 
+
+
+<p> 
+The code contains the original <code> for </code> statement in support because they have to remove it. Tags 
+Excluding relationship, <code> ITER </code> and <code> BLOCK </code> of Pop pushed it. After the <code> NODE_FCALL </code> to 
+Normal <code> rb_eval () </code> to the fact that because of this <code> ITER </code> and <code> BLOCK </code> method is 
+Requirements for the enumeration. 
+</p> 
+
+<p> 
+<code> BLOCK </code> push is needed to be as fair to middling, <code> ITER </code> What's the point 
+? Actually <code> ITER </code> to think about the meaning of <code> BLOCK </code> to use it to look at koh 
+I need it. 
+</p> 
+
+<p> 
+For example, the method is called now. And <code> ruby_block </code> exists 
+Hoops. But <code> BLOCK </code> method calls for break and win regardless so the block 
+QUEUE saying he will present it to their pile of whether the block 
+I do not know. Maybe my previous method for the pile of blocks 
+I might be (see Figure 1). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_iterator_stacks.jpg" alt="(stacks)"> <br> 
+Figure 1: <code> FRAME </code> and <code> BLOCK </code> is not bijection 
+</p> 
+
+<p> 
+The blocks are stacked which method to determine the order of 
+<code> ITER </code> to use it. Why <code> BLOCK </code> and <code> FRAME </code>積まないtell each, 
+<code> BLOCK </code> from a ship that was a little heavy. How serious is the 
+Let's look at the actual check. 
+</p> 
+
+<h4> <code> PUSH_BLOCK () </code> </h4> 
+
+<p> 
+<code> PUSH_BLOCK () </code> argument is blocking parameters (for use) and block 
+Body. 
+</p> 
+
+<p class="caption"> ▼ <code> PUSH_BLOCK () POP_BLOCK () </code> </p> 
+<pre class="longlist"> 
+  592 # define PUSH_BLOCK (v, b) do (\ 
+  593 struct BLOCK _block; \ 
+  594 _block.tag = new_blktag (); \ 
+  595 _block.var = v; \ 
+  596 _block.body = b; \ 
+  597 _block.self = self; \ 
+  598 _block.frame = * ruby_frame; \ 
+  599 _block.klass = ruby_class; \ 
+  600 _block.frame.node = ruby_current_node; \ 
+  601 _block.scope = ruby_scope; \ 
+  602 _block.prev = ruby_block; \ 
+  603 _block.iter = ruby_iter-&gt; iter; \ 
+  604 _block.vmode = scope_vmode; \ 
+  605 _block.flags = BLOCK_D_SCOPE; \ 
+  606 _block.dyna_vars = ruby_dyna_vars; \ 
+  607 _block.wrapper = ruby_wrapper; \ 
+  608 ruby_block = &amp; _block 
+
+  610 # define POP_BLOCK () \ 
+  611 if (_block.tag-&gt; flags &amp; (BLOCK_DYNAMIC)) \ 
+  612 _block.tag-&gt; flags | = BLOCK_ORPHAN; \ 
+  613 else if (! (_block.scope-&gt; Flags &amp; SCOPE_DONT_RECYCLE)) \ 
+  614 rb_gc_force_recycle ((VALUE) _block.tag); \ 
+  615 ruby_block = _block.prev; \ 
+  616) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Find that, <code> BLOCK </code> and "create a snapshot of the environment at the time." 
+Such evidence <code> CREF </code> and <code> BLOCK </code> other stack is stored in six frames. 
+<code> CREF </code> is <code> ruby_frame-&gt; cbase </code> a substitute, so it does not need training. 
+</p> 
+
+<p> 
+The push for a three-point verification mechanism. <code> BLOCK </code> on a stack of best - 
+Data ensure that it is placed. <code> BLOCK </code> to this point in time <code> FRAME </code> to copy whole 
+That it is. <code> BLOCK </code> are many other stack frame structure, unlike the previous 
+<code> BLOCK </code> pointer to the (<code> prev </code>) to have. 
+</p> 
+
+<p> 
+<code> POP_BLOCK () </code> a lot of flags are being used later <code> Proc </code> to see the implementation 
+Do not know at once to see that we are not explained. 
+</p> 
+
+<p> 
+Now <code> BLOCK </code> is heavy, but the story certainly a little heavy. 
+<code> new_blktag () </code> is 
+And a look <code> malloc () </code> that the large number of member stores. But the final stamp 
+It does interruption <code> PUSH_ITER () </code> also from the tray. 
+</p> 
+
+<h4> <code> PUSH_ITER () </code> </h4> 
+
+<p class="caption"> ▼ <code> PUSH_ITER () POP_ITER () </code> </p> 
+<pre class="longlist"> 
+  773 # define PUSH_ITER (i) do (\ 
+  774 struct iter _iter; \ 
+  775 _iter.prev = ruby_iter; \ 
+  776 _iter.iter = (i); \ 
+  777 ruby_iter = &amp; _iter 
+
+  779 # define POP_ITER () \ 
+  780 ruby_iter = _iter.prev; \ 
+  781) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+More details are likely to be light. Use only the area of the stack and, with the two members 
+Only. This is <code> FRAME </code> by putting much of it is likely there will be. 
+</p> 
+
+
+
+The following is a block積んだらiterator () method will be called. Resona It also needs a bit of gimmick. rb_call0 () at the beginning ruby_iter of Changes in the value of the code is that you remember? It goes here.
+
+▼ rb_call0 () - ITER_CUR transition
+
+ 
+4498 switch (ruby_iter-> iter) ( 
+4499 case ITER_PRE: 
+4500 itr = ITER_CUR; 
+4501 break; 
+4502 case ITER_CUR: 
+4503 default: 
+4504 itr = ITER_NOT; 
+4505 break; 
+4506) 
+
+(eval.c) 
+We NODE_ITER , ITER_PRE -laden, the code ruby_iter is ITER_CUR said. This method is the first enumeration, "" it is. The state of the stack illustrated in Figure 2 and so on.
+
+
+Figure 2: iterator like calling a stack of Ruby
+
+ruby_iter authenticity of the value of (his / her is not) in three phases instead of two minutes That he is putting in the blocks before the start of ITERETAMESODDO Have a little gap. For example, evaluation of the arguments ITERETAMESODDO HASAMATTA RISURU. Among them is the method calls on it should be, The trial at the block-laden mistaken for one of them has been used Allowed Potential. So iterator to…… ITER_CUR to the start SU is complete On the verge of rb_call0 () must be inside.
+
+▼ processed the order
+
+ 
+method (arg)  (block)  # block to gain 
+method ( arg ) (block) # arguments rating 
+ method ( arg )  (block) # method calls 
+Back in the method, for example NODE_CALL handler BEGIN_CALLARGS Correction U macro. This is precisely the point: ITER are being made to utilize. Let's look back a little.
+
+BEGIN_CALLARGS END_CALLARGS
+▼ BEGIN_CALLARGS END_CALLARGS
+
+ 
+1812 # define BEGIN_CALLARGS do (\ 
+1813 struct BLOCK * tmp_block = ruby_block; \ 
+1814 if (ruby_iter-> iter == ITER_PRE) (\ 
+1815 ruby_block = ruby_block-> prev; \ 
+1816) \ 
+1817 PUSH_ITER (ITER_NOT) 
+
+1819 # define END_CALLARGS \ 
+1820 ruby_block = tmp_block; \ 
+1821 POP_ITER (); \ 
+1822) while (0) 
+
+(eval.c) 
+ruby_iter is ITER_PRE when the ruby_block claw by a similar one in the world. This code is active in the following cases, for example.
+
+ 
+obj.m1 (nil). m2 (nil) 
+The order of the rating formula
+
+m2 to push the block
+m1 to push the block
+method m1 calls
+method m2 calls
+Said. So BEGIN_CALLARGS is not m1 is m2 block calls .
+
+Another one is led to iterator as is the case BEGIN_CALLARGS is on the rise in the number of no problem with that.
+
+block start
+Iterator start of the third phase, which is the last step is the start of the block.
+
+▼ rb_eval () - NODE_YIELD
+
+ 
+2579 case NODE_YIELD: 
+2580 if (node-> nd_stts) ( 
+2581 result = avalue_to_yvalue (rb_eval (self, node-> nd_stts)); 
+2582) 
+2583 else ( 
+2584 result = Qundef; / * no arg * / 
+2585) 
+2586 SET_CURRENT_SOURCE (); 
+2587 result = rb_yield_0 (result, 0, 0, 0); 
+2588 break; 
+
+(eval.c) 
+nd_stts is yield argument. avalue_to_yvalue () multiple assignment this time is A little touch, but it's okay to ignore. That is also the core operation Rather than rb_yield_0 () . This function is also long, simplify the思いきり Post. How has ever been used recently.
+
+trace_func relationship to cut
+error to cut
+GC only for the shade to cut the number
+massign () with the same arguments pcall .
+This argument will change the argument to check the severity of what can only be good. Therefore pcall = 0 and assumptions include the constant on疊
+Moreover We are following "best option Readability" is also selected.
+
+equal number of each branch of the main branch but was cut back after
+In most cases
+true / false condition is always true / false alert mechanism at
+tag jump is totally free to assume that the relationship and remove tags
+Quite shorter and the whole way here.
+
+▼ rb_yield_0 () (condensed version)
+
+ 
+static VALUE 
+rb_yield_0 (val, self, klass, / * pcall = 0 * /) 
+     VALUE val, self, klass; 
+( 
+     volatile VALUE result = Qnil; 
+     volatile VALUE old_cref; 
+     volatile VALUE old_wrapper; 
+     struct BLOCK * volatile block; 
+     struct SCOPE * volatile old_scope; 
+     struct FRAME frame; 
+     int state; 
+
+     PUSH_VARS (); 
+     PUSH_CLASS (); 
+     block = ruby_block; 
+     frame = block-> frame; 
+     frame.prev = ruby_frame; 
+     ruby_frame = & (frame); 
+     old_cref = (VALUE) ruby_cref; 
+     ruby_cref = (NODE *) ruby_frame-> cbase; 
+     old_wrapper = ruby_wrapper; 
+     ruby_wrapper = block-> wrapper; 
+     old_scope = ruby_scope; 
+     ruby_scope = block-> scope; 
+     ruby_block = block-> prev; 
+     ruby_dyna_vars = new_dvar (0, 0, block-> dyna_vars); 
+     ruby_class = block-> klass; 
+     self = block-> self; 
+
+     / * Set of arguments to block * / 
+     massign (self, block-> var, val, pcall); 
+
+     PUSH_ITER (block-> iter); 
+     / * Run the unit block * / 
+     result = rb_eval (self, block-> body); 
+     POP_ITER (); 
+
+     POP_CLASS (); 
+     / *…… Ruby_dyna_vars a recall…… * / 
+     POP_VARS (); 
+     ruby_block = block; 
+     ruby_frame = ruby_frame-> prev; 
+     ruby_cref = (NODE *) old_cref; 
+     ruby_wrapper = old_wrapper; 
+     ruby_scope = old_scope; 
+
+     return result; 
+) 
+As you can see, most of the stack frame ruby_block and the recollection SURIKAE. Return to the simple saving what is good as the other Notable Let's look at the handling of the frame.
+
+FRAME
+ 
+struct FRAME frame; 
+
+frame = block-> frame; / * copy whole structure * / 
+frame.prev = ruby_frame; / * line of the two…… * / 
+ruby_frame = & (frame); / *…… frame is pushed * / 
+Unlike other frame, FRAME is remembered, not just those new FRAME to make the replica. That is as in Figure 3.
+
+ 
+Figure 3: Copy of the frame to gain
+
+You take a look at the code and, FRAME "reuse" will be First, no. FRAME is always a new experience when FRAME doing.
+
+BLOCK
+ 
+block = ruby_block; 
+          : 
+ruby_block = block-> prev; 
+          : 
+ruby_block = block; 
+It is the most do not know BLOCK this behavior. I'm on a saving orポッ I'm on a group of well-known. The sentence is in pairs and the pulp and ultimately Back to the original, it is understandable, but what are the results of the second sentence of about Want?
+
+In short, many thought that conclusion and say, "when the block-laden ruby_block to return Be. " Iterators is back YOUSURUNI previous frame construction. From the stack frame to block the state at the time to get everything back I made it. And when I made the block ruby_block value is, block-> prev was to Sure. So prev in that.
+
+The "Always ruby_block to start the first one to assume that I had to "The question is that," rb_yield_0 () assumes the side as I do " Just say no. Should start to block ruby_block most of it is carrying on the Web Rock prepare a side job even though, rb_yield_0 () is not the job.
+
+One example of this is done in the previous chapter BEGIN_CALLARGS . Iterator call is KASUKE And a two-stage win in the block, should not block the top of the stack To come. That's why even bother to check the appropriate box next to the gangway.
+
+VARS
+Come to think of it yet PUSH_VARS () and POP_VARS () did not see the contents of such Feel. Here, let me see it.
+
+▼ PUSH_VARS () POP_VARS ()
+
+ 
+  619 # define PUSH_VARS () do (\ 
+  620 struct RVarmap * volatile _old; \ 
+  621 _old = ruby_dyna_vars; \ 
+  622 ruby_dyna_vars = 0 
+
+  624 # define POP_VARS () \ 
+  625 if (_old & & (ruby_scope-> flags & SCOPE_DONT_RECYCLE)) (\ 
+  626 if (RBASIC (_old) -> flags) / * re not used * / \ 
+  627 FL_SET (_old, DVAR_DONT_RECYCLE); \ 
+  628) \ 
+  629 ruby_dyna_vars = _old; \ 
+  630) while (0) 
+
+(eval.c) 
+This new structure is to gain it, "saving comeback," said it is close. In fact rb_yield_0 () , PUSH_VARS () the value of saving to be used, it is only . In fact ruby_dyna_vars are preparing for this line.
+
+ 
+ruby_dyna_vars = new_dvar (0, 0, block-> dyna_vars); 
+BLOCK to remember the earlier dyna_vars out of a set. Incidentally entry One of them to leave. The second part, I did ruby_dyna_vars I want to remind the structure It is here that generated such id 0 RVarmap scope is blocked区切 Resona as used.
+
+But in fact, the evaluator and parser ruby_dyna_vars stored in the form of a subtle link Different. The current block to block local variables assigned functions dvar_asgn_curr () to look at.
+
+▼ dvar_asgn_curr ()
+
+ 
+  737 static inline void 
+  738 dvar_asgn_curr (id, value) 
+  739 ID id; 
+  740 VALUE value; 
+  741 ( 
+  742 dvar_asgn_internal (id, value, 1); 
+  743) 
+
+  699 static void 
+  700 dvar_asgn_internal (id, value, curr) 
+  701 ID id; 
+  702 VALUE value; 
+  703 int curr; 
+  704 ( 
+  705 int n = 0; 
+  706 struct RVarmap * vars = ruby_dyna_vars; 
+  707 
+  708 while (vars) ( 
+  709 if (curr & & vars-> id == 0) ( 
+  710 / * first null is a dvar header * / 
+  711 n + +; 
+  712 if (n == 2) break; 
+  713) 
+  714 if (vars-> id == id) ( 
+  715 vars-> val = value; 
+  716 return; 
+  717) 
+  718 vars = vars-> next; 
+  719) 
+  720 if (! Ruby_dyna_vars) ( 
+  721 ruby_dyna_vars = new_dvar (id, value, 0); 
+  722) 
+  723 else ( 
+  724 vars = new_dvar (id, value, ruby_dyna_vars-> next); 
+  725 ruby_dyna_vars-> next = vars; 
+  726) 
+  727) 
+
+(eval.c) 
+Last if is a variable statement added. There attention at the ruby_dyna_vars of "Next" link to squeeze us to understand that. That is similar to Figure 4.
+
+ 
+Figure 4: ruby_dyna_vars structure
+
+Parser, and when the difference between two points. Header to indicate the scope of the first break (id = 0) to Hand side of the link thing. In addition to the suspensory chain links. That is ruby_dyna_vars is always straight to form a single list.
+
+The second point is of course relevant. A book list for the parser is On the way to dangle in the middle of the entry list to be inserted Do. But if the header is attached to the back of the scope and the first one to speak It can not be inserted (Fig. 5). Such operations in order to head back to the (first place, it is difficult) link I traced all, prev and links to be inferior. The former is a nuisance and a SUPI Is not to fall into the latter RVarmap to impossible because there is no gap.
+
+ 
+Figure 5: it can not insert entry
+
+specified target jump
+Tag is just jumping off relations with him is, rb_yield_0 () jump This is an unprecedented ingenuity. Why do I need to be devised, The cause of Let's at. I'd like to see the following programs.
+
+ 
+[0]. Each do 
+   break 
+end 
+# Break to drop out of place 
+In this way, block break If the method of block-laden omission Should not have. It is indeed what it is? ITERE Data on when you start the (dynamic) call, let us look at the chart.
+
+ 
+rb_eval (NODE_ITER) .... catch (TAG_BREAK) 
+     rb_eval (NODE_CALL) .... catch (TAG_BREAK) 
+         rb_eval (NODE_YIELD) 
+             rb_yield_0 
+                 rb_eval (NODE_BREAK) .... throw (TAG_BREAK) 
+It is laden with blocks NODE_ITER of it, break , NODE_ITER to 戻るべき. But NODE_ITER before NODE_CALL is TAG_BREAK to Ahead. Method over break to make the error. This is We have to help. One way or another NODE_ITER 抜けないto have one sitting.
+
+And in fact " NODE_ITER Return" still bad. Iterator is nested in If NODE_ITER can present more than the current corresponding to the block The first NODE_ITER and China. In other words, "now running the block-laden NODE_ITER "simply must return to the limit.
+
+So what's going to look at.
+
+▼ rb_yield_0 () - tag relationship
+
+ 
+3826 PUSH_TAG (PROT_NONE); 
+3827 if ((state = EXEC_TAG ()) == 0) ( 
+               / *…… Body to assess…… * / 
+3838) 
+3839 else ( 
+3840 switch (state) ( 
+3841 case TAG_REDO: 
+3842 state = 0; 
+3843 CHECK_INTS; 
+3844 goto redo; 
+3845 case TAG_NEXT: 
+3846 state = 0; 
+3847 result = prot_tag-> retval; 
+3848 break; 
+3849 case TAG_BREAK: 
+3850 case TAG_RETURN: 
+3851 state | = (serial + + <<8); 
+3852 state | = 0x10; 
+3853 block-> tag-> dst = state; 
+3854 break; 
+3855 default: 
+3856 break; 
+3857) 
+3858) 
+3859 POP_TAG (); 
+
+(eval.c) 
+TAG_BREAK and TAG_RETURN this time is important.
+
+First serial is rb_yield_0 () static, so variable, rb_yield_0 () call Differ from the values that can be obtained. " Serial " "Serial No." serial .
+
+8-bit shift to the left of TAG_xxxx value to avoid. TAG_xxxx is 0x1 in 0x8 If you have 4-bit, so it goes. And 0x10 is the bit or, serial of Overflow measures would be. 32-bit machine that serial 24-bit (1600 kai Bun 10,000) Since only the latest machines, less than 10 seconds into overflow. Then the bottom 24 times the zero line a bit, so that, if 0x10 is Not state is TAG_xxxx to become the same value (Fig. 6).
+
+ 
+Figure 6: block-> tag-> dst
+
+Now, this is tag-> dst is TAG_xxxx are different and unique for each call Value. So far this like a normal switch will be受け取れなく So it'll jump to stop it also needs to be devised. It is something and say, rb_eval: NODE_ITER here.
+
+▼ rb_eval () - NODE_ITER (jump stop)
+
+ 
+case NODE_ITER: 
+   ( 
+       state = EXEC_TAG (); 
+       if (state == 0) ( 
+           / *…… Iterator start…… * / 
+       ) 
+       else if (_block.tag-> dst == state) ( 
+           state & = TAG_MASK; 
+           if (state == TAG_RETURN | | state == TAG_BREAK) ( 
+               result = prot_tag-> retval; 
+           ) 
+       ) 
+   ) 
+In response to the NODE_ITER and rb_yield_0 () , block is supposed to be the same thing as being So, rb_yield_0 () setting tag-> dst come here, they said. Resona The corresponding U NODE_ITER as well jump in to stop it.
+
+block check
+The method is currently evaluating whether the enumeration, which is blocked Whether, in rb_block_given_p () to find out. When you read this far It is implemented.
+
+▼ rb_block_given_p ()
+
+ 
+3726 int 
+3727 rb_block_given_p () 
+(3728 
+3729 if (ruby_frame-> iter & & ruby_block) 
+3730 return Qtrue; 
+3731 return Qfalse; 
+3732) 
+
+(eval.c) 
+I think no problem. This is actually a topic I wanted to check for another Function, rb_f_block_given_p () it.
+
+▼ rb_f_block_given_p ()
+
+ 
+3740 static VALUE 
+3741 rb_f_block_given_p () 
+(3742 
+3743 if (ruby_frame-> prev & & ruby_frame-> prev-> iter & & ruby_block) 
+3744 return Qtrue; 
+3745 return Qfalse; 
+3746) 
+
+(eval.c) 
+This is Ruby's block_given? entity. rb_block_given_p () comparison with ruby_frame - prev to find someone different. Why?
+
+And consider mechanisms to block a cargo rb_block_given_p () as the current ruby_frame is correct to examine. But Ruby level to block_given? to him If you are, block_given? method itself, so FRAME is a further win in extra . It was further You have to look at before.
+
+Proc
+
+Proc to implement the terms of the object and say "Ruby level持ち出せる BLOCK ". Ruby持ち出せるlevel, they are free to increase anti - , Or exactly when and where you used to know that you, too. That What is the impact on the implementation of attention going to see.
+
+Proc generated objects
+Proc object is Proc.new to make. The entities are proc_new () .
+
+▼ proc_new ()
+
+ 
+6418 static VALUE 
+6419 proc_new (klass) 
+6420 VALUE klass; 
+(6421 
+6422 volatile VALUE proc; 
+6423 struct BLOCK * data, * p; 
+6424 struct RVarmap * vars; 
+6425 
+6426 if (! Rb_block_given_p () & &! Rb_f_block_given_p ()) ( 
+6427 rb_raise (rb_eArgError, 
+                 "tried to create Proc object without a block"); 
+6428) 
+6429 
+           / * (A) struct RData and collectively to ensure the struct BLOCK * / 
+6430 proc = Data_Make_Struct (klass, struct BLOCK, 
+                                   blk_mark, blk_free, data); 
+6431 * data = * ruby_block; 
+6432 
+6433 data-> orig_thread = rb_thread_current (); 
+6434 data-> wrapper = ruby_wrapper; 
+6435 data-> iter = data-> prev? Qtrue: Qfalse; 
+           / * (B) It is essential to complete the initial * / 
+6436 frame_dup (& data-> frame); 
+6437 if (data-> iter) ( 
+6438 blk_copy_prev (data); 
+6439) 
+6440 else ( 
+6441 data-> prev = 0; 
+6442) 
+6443 data-> flags | = BLOCK_DYNAMIC; 
+6444 data-> tag-> flags | = BLOCK_DYNAMIC; 
+6445 
+6446 for (p = data; p; p = p-> prev) ( 
+6447 for (vars = p-> dyna_vars; vars; vars = vars-> next) ( 
+6448 if (FL_TEST (vars, DVAR_DONT_RECYCLE)) break; 
+6449 FL_SET (vars, DVAR_DONT_RECYCLE); 
+6450) 
+6451) 
+6452 scope_dup (data-> scope); 
+6453 proc_save_safe_level (proc); 
+6454 
+6455 return proc; 
+6456) 
+
+(eval.c) 
+Proc object creation itself is surprisingly simple. (A) and (B). Between Proc objects in space, has also terminated early. Data_Make_Struct () is malloc () and Data_Wrap_Struct () at the same time it simple Macro.
+
+Then the problem is.
+
+frame_dup ()
+blk_copy_prev ()
+FL_SET (vars, DVAR_DONT_RECYCLE)
+scope_dup ()
+The four are all the same purpose. It is
+
+stack machines have been put in motion a whole heap
+POP that are still not recovered to
+. Here, "all" is prev all included. Oh putting in there Frame to the entire stack of malloc () and the duplicate copy. VARS is normal. And POP the same time rb_gc_force_recycle () recovered by force, but I also DVAR_DONT_RECYCLE flag halt. And so on. Really思いきった Thing.
+
+Why do we have such a reckless? It is the ITERE Unlike the lock tab Proc is created that can live longer than the original method. Resona The method is finished stack machine that is secured by FRAME and ITER and, SCOPE - local_vars may be that of the disabled 使ったらmemory of what would happen after it is easily predictable (Answer the following: hurt).
+
+Still, at least several Proc the same FRAME and I can not use, I think it is, old_frame local variables, such as pointers to take shelter There is something that is not so promising. For example, if you have a difficult time anyway The first is from all malloc () assign to the effort to use ideas such as head It seems that addition.
+
+In any case, but the Great, I can say such a pace that works well, um, I think I have to have a quiet. It's really nice time has come.
+
+floating frame
+In short, is just "to the entire frame replication," was picked up by the rubber Now Resona, so let me see a little more. The following points are two points.
+
+how to replicate it all
+Why?
+replicate all
+First of all types of storage each stack frame to start at once.
+
+frame		 storage format		 prev pointer	
+FRAME		 stack		 in	
+SCOPE		 stack		 None	
+local_tbl		 heap			
+local_vars		 stack			
+VARS		 heap		 None	
+BLOCK		 stack		 in	
+CLASS CREF ITER This is not African. CLASS object to the general Ruby Is wrong rb_gc_force_recycle () or not (not), CREF and ITER is the time value of FRAME that once stored the other's serve. This table is a four-frame is important is that, after several changes from the reference Or need. The remaining three did not.
+
+What do you want to replicate the entire story. How do you, and telling him not to get HEART I " malloc () " It is not TOKAIU. How do you "all" or replicate the trough But dental problem. This is because the table, but I'd like to see, prev pointer There is no frame. In other words辿れないlink. Then how to replicate the entire Now?
+
+This is quite a clever trick is being used. SCOPE take as an example. We SCOPE to replicate it scope_dup () was using a function, First, let's take a look at it.
+
+▼ scope_dup () beginning
+
+ 
+6187 static void 
+6188 scope_dup (scope) 
+6189 struct SCOPE * scope; 
+(6190 
+6191 ID * tbl; 
+6192 VALUE * vars; 
+6193 
+6194 scope-> flags | = SCOPE_DONT_RECYCLE; 
+
+(eval.c) 
+As you can see SCOPE_DONT_RECYCLE up. So then POP_SCOPE () If you look at the definition,
+
+▼ POP_SCOPE () beginning
+
+ 
+  869 # define POP_SCOPE () \ 
+  870 if (ruby_scope-> flags & SCOPE_DONT_RECYCLE) (\ 
+  871 if (_old) scope_dup (_old); \ 
+  872) \ 
+
+(eval.c) 
+When the current Pop SCOPE ( ruby_scope ) to SCOPE_DONT_RECYCLE Hu I was standing on the rugs, one of the previous SCOPE ( _old ) also scope_dup () , An undisclosed. This also means that SCOPE_DONT_RECYCLE knew. Looked at one by oneポッ Flag at the group spread, but we (Fig. 7).
+
+ 
+Figure 7: propagation flag
+
+VARS and prev pointer is not using the same technique DVAR_DONT_RECYCLE . Transmitted by the flag.
+
+Then the second point, "Why replicate all?" Let us consider. Proc to make the SCOPE after the local variables can refer to it, but nothing The previous SCOPE , including all of the copy, it can not be.
+
+To be honest, I do not know the answer is about three days how to form this section If I had been suffering from it, the answer just now. The following programs: I want to see.
+
+ 
+def get_proc 
+   Proc.new (nil) 
+end 
+
+env = get_proc (p 'ok') 
+eval ( "yield", env) 
+It is still not explain the function but, eval second argument Proc object travelled SU and the environmental assessment at the strings.
+
+It means that come here to read me know if readers think, Proc (ie BLOCK ) from various environmental push to grab it and evaluate it The fact that you. Then, of course BLOCK they are also putting in its The BLOCK again Proc as possible. Then the Proc In addition to using eval …… and the doable, Ruby level to ruby_block Most of the information. Access to self-indulgent. That's the whole stack all Why do we have to replicate.
+
+Proc start
+The following is generated Proc look at the object about to start. Ruby from the Proc # call to start from the reality, you should follow. Proc # call entity Is proc_call () .
+
+▼ proc_call ()
+
+ 
+6570 static VALUE 
+6571 proc_call (proc, args) 
+6572 VALUE proc, args; / * OK * / 
+(6573 
+6574 return proc_invoke (proc, args, Qtrue, Qundef); 
+6575) 
+
+(eval.c) 
+proc_invoke () delegates. invoke in the dictionary and索く"(God, etc.) to seek salvation The call for ", says that in the context of programming, but said" start " Roughly the same meaning to use it often. For example, "Invoking gcc" and say . If the Japanese "Launching" and "exercise" may, I might.
+
+The proc_invoke () and the prototype is to say,
+
+ 
+proc_invoke (VALUE proc, VALUE args, int pcall, VALUE self) 
+And we have been, seemingly just said pcall = Qtrue , self = Qundef convolution, so this is a constant, killing two.
+
+▼ proc_invoke (condensed version)
+
+ 
+static VALUE 
+proc_invoke (proc, args, / * pcall = Qtrue * /, / * self = Qundef * /) 
+     VALUE proc, args; 
+     VALUE self; 
+( 
+     struct BLOCK * volatile old_block; 
+     struct BLOCK _block; 
+     struct BLOCK * data; 
+     volatile VALUE result = Qnil; 
+     int state; 
+     volatile int orphan; 
+     volatile int safe = ruby_safe_level; 
+     volatile VALUE old_wrapper = ruby_wrapper; 
+     struct RVarmap * volatile old_dvars = ruby_dyna_vars; 
+
+     / * (A) proc to retrieve data from BLOCK assign * / 
+     Data_Get_Struct (proc, struct BLOCK, data); 
+     / * (B) blk_orphan * / 
+     orphan = blk_orphan (data); 
+
+     ruby_wrapper = data-> wrapper; 
+     ruby_dyna_vars = data-> dyna_vars; 
+     / * (C) data from a ship BLOCK * / 
+     old_block = ruby_block; 
+     _block = * data; 
+     ruby_block = & _block; 
+
+     / * (D) ITER_CUR transition * / 
+     PUSH_ITER (ITER_CUR); 
+     ruby_frame-> iter = ITER_CUR; 
+
+     PUSH_TAG (PROT_NONE); 
+     state = EXEC_TAG (); 
+     if (state == 0) ( 
+         proc_set_safe_level (proc); 
+         / * (E) boot block * / 
+         result = rb_yield_0 (args, self, 0, pcall); 
+     ) 
+     POP_TAG (); 
+
+     POP_ITER (); 
+     if (ruby_block-> tag-> dst == state) ( 
+         state & = TAG_MASK; / * specified target jump * / 
+     ) 
+     ruby_block = old_block; 
+     ruby_wrapper = old_wrapper; 
+     ruby_dyna_vars = old_dvars; 
+     ruby_safe_level = safe; 
+
+     switch (state) ( 
+       case 0: 
+         break; 
+       case TAG_BREAK: 
+         result = prot_tag-> retval; 
+         break; 
+       case TAG_RETURN: 
+         if (orphan) (/ * orphan procedure * / 
+             localjump_error ( "return from proc-closure", prot_tag-> retval); 
+         ) 
+         / * Fall through * / 
+       default: 
+         JUMP_TAG (state); 
+     ) 
+     return result; 
+) 
+There is a critical C, D, E three.
+
+(C) NODE_ITER syntax from a tree, BLOCK to make a seasoned, which is Proc from BLOCK to retrieve the ship.
+
+(D) rb_call0 () , ITER_PRE through the ITER_CUR on, he is suddenly ITER_CUR today.
+
+(E) enumeration, the method calls are usually fromはさまっ yield could rb_yield_0 () , but where to go, he is asked questions and answers rb_yield_0 () to call, just a block-laden start.
+
+That is the enumeration NODE_ITER in rb_call0 () in NODE_YIELD and divided into three stations The work had been done at once, but in one sitting.
+
+Finally (B) of blk_orphan () let me talk about the meaning of. orphan "orphan" In the sense that, " Proc created a method to end the" state in order to determine For the function. For example BLOCK are using SCOPE I had already popped in final Liao and determined to do better.
+
+blocks and Proc
+Back in the method arguments and parameters have talked a lot about the block There was no talk of the argument. Easy, but here I'll be the final episode.
+
+ 
+def m (& block) 
+end 
+This is a "block parameters." This method is very easy to realize. m is Lee If I TERETA BLOCK that should be borne in it Proc 化し(This If you) block a local variable if needed. Block Proc to We just did a proc_new () to call them. Why is it I do, it may be a little confusing, Proc.new would m will be "If the method is called, BLOCK is being loaded," a situation where変わ Resona should not be. So from the C level proc_new () to call a block at any time Proc of.
+
+Also m iterator is not simply nil to do the assignment.
+
+Then it to pass block.
+
+ 
+m (& block) 
+This "block argument." It's easy, block (in the Proc of Projects) BLOCK 積めto grab it. PUSH_BLOCK () and the difference is at To BLOCK is made with only the point or not.
+
+Incidentally, this function is doing work block_pass () . As if you care about Look around to find out. But where he really only street That's a disappointment because it might…….
+
+The original work is Copyright © 2002 - 2004 Minero AOKI.
+Translations,  additions,  and graphics by C.E. Thornton
+
+This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike2.5 License.
