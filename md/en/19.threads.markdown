@@ -1,0 +1,1477 @@
+
+<h1> Chapter 19 Threads </h1> 
+
+<h2> Summary </h2> 
+
+<h3> Ruby interface </h3> 
+
+<p> 
+Speaking of the actual conversation with Ruby code still not be good showing 
+I feel the hoops. It does not have much, let me introduce ICHIOU. 
+</p> 
+
+<pre class="emlist"> 
+Thread.fork ( 
+     while true 
+       puts' forked thread ' 
+     end 
+) 
+while true 
+   puts' main thread ' 
+end 
+</pre> 
+
+<p> 
+This program will do the right <code> "forked thread" </code> and <code> "main thread" </code> is 
+YAMAZENINATTE whinge in output. 
+</p> 
+
+<p> 
+But of course, make multiple threads of control in many ways than that. 
+Java as <code> synchronize </code> do not have reserved words, 
+<code> Mutex </code>, <code> Queue </code>, <code> Monitor </code> such as primitive as well as common sense 
+Provided that the operation of the thread itself to the following API are available. 
+</p> 
+
+<p class="caption"> ▼ thread API </p> 
+<table> 
+<tbody><tr> <td> <code> Thread.pass </code> </td><td> </td><td> thread running someone else to move. </td><td> </td></tr> 
+<tr> <td> <code> Thread.kill (th) </code> </td><td> </td><td> thread <code> th </code> to shut down. </td><td> </td></tr> 
+<tr> <td> <code> Thread.exit </code> </td><td> </td><td> end a self-conversation. </td><td> </td></tr> 
+<tr> <td> <code> Thread.stop </code> </td><td> </td><td> self suspend a thread. </td><td> </td></tr> 
+<tr> <td> <code> Thread # join </code> </td><td> </td><td> the end of the thread is to wait. </td><td> </td></tr> 
+<tr> <td> <code> Thread # wakeup </code> </td><td> </td><td> moratorium against the thread. </td><td> </td></tr> 
+</tbody></table> 
+
+
+
+<h3> <code> ruby </code> thread </h3> 
+
+<p> 
+The conversation was "all move in unison," but the principle is actually a bit of時間ず 
+It is not the one running order. Strictly speaking, multi-CPU machines in its own worker 
+If the husband can move or two, but still more than the number of CPU thread 
+If you still have to order動かなけれ. 
+</p> 
+
+<p> 
+That is the thread to create something for anyone to switch to let a thread 
+I have no reason, but the method is divided into two types. 
+And KANERUREBERUSUREDDO 
+YUZAREBERUSUREDDO. This is neither self-の如く, Su 
+Red kernel to make it user-level or make a difference. 
+Kernel-level, multi-CPU to take advantage of multiple threads simultaneously move 
+Can do. 
+</p> 
+
+<p> 
+, <code> ruby </code> thread what of it has to do with this is in YUZAREBERUSUREDDO 
+There is. 
+And (thus) At the same time動けるconversations are strictly limited by just one. 
+</p> 
+
+
+
+<h3> preemptive or </h3> 
+
+<p> 
+A little more <code> ruby </code> thread to talk about the feature. For another apparent thread 
+As the "preemptive (preemptive) whether" the points raised 
+There is. 
+</p> 
+
+<p> 
+"Topic (mechanism) is preemptive (preemptive)," he said, 
+The thread is a thread switch to using it without having to explicitly wins 
+The conversation switched to hand it to me. To the contrary point of view,スレッ 
+DE can not control the timing of the switch, they said. 
+</p> 
+
+<p> 
+Meanwhile mechanism nonpreemptive threads, the thread is using it 
+Explicit "this thread to give him the right to control it," say as long as 
+Switch thread. Conversely standpoint, the thread is always the possibility切り替わ 
+Find a place that is clear. 
+</p> 
+
+<p> 
+This distinction is partly because of the process, in that case it is a preemptive "great" 
+In particular it. For example, there are bugs in some programs have fallen into an infinite loop 
+切り替わらなくprocess would be. That is one of the user program 
+Go all the way to stop the entire system does, it will not meet. But I, 
+Windows 3.1 is the basic MS-DOS, so switching process NONPURIENPU 
+Windows 95 is KEDOMO Tib was preemptive. Thus the system is more 
+Robust. Therefore 3.1 from Windows 95 is "great" story. 
+</p> 
+
+<p> 
+So <code> ruby </code> say whether the conversations and, Ruby level is preemptive, 
+C level in the nonpreemptive. C code that is written off when the 
+The conversation is almost certain to switch to a specific timing. 
+</p> 
+
+<p> 
+Why do I have? The conversation is certainly useful, but use 
+It also needs to be some kind of mental attitude. That is the thread that corresponds to the number and 
+If you do not (must be MARUCHISUREDDOSEFU). In other words C LES 
+Bell even if the preemptive use of the library, all Cマルチスレッ 
+DE must be aware of that. 
+</p> 
+
+<p> 
+However, the reality of the C libraries are still many non-thread-safe.せっ 
+Struggling to extend library bishop easy to write but not required to respond to a thread 
+The library can be used to reduce the number of those meaningless. So C level 
+Nonpreemptive is, is <code> ruby </code> is a reasonable choice. 
+</p> 
+
+
+
+<h3> management system </h3> 
+
+<p> 
+<code> ruby </code> nonpreemptive thread is that the C level. That is a 
+動いたらextent of the right to voluntarily hand off the gas to run it. Let's just runningスレッ 
+Is not run anymore and is thought to want. Who should run the right to pass 
+? Well before the first place, the thread is <code> ruby </code> in any way inside 
+Represented by the difference and I do not know. Threads for managing 
+Variables and data types, let us see. 
+</p> 
+
+<p class="caption"> ▼ thread structure to manage </p> 
+<pre class="longlist"> 
+  864 typedef struct thread * rb_thread_t; 
+  865 static rb_thread_t curr_thread = 0; 
+  866 static rb_thread_t main_thread; 
+
+7301 struct thread ( 
+7302 struct thread * next, * prev; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> struct thread </code> is a very big piece of reasons, so I focused only important part. 
+So only two, but this <code> next </code> and <code> prev </code> a member name and its 
+The type <code> rb_thread_t </code> because <code> rb_thread_t </code> is linked to two-way link list 
+Is believed to be. And in fact, not just a list of two-way at both ends of GATSU 
+Wants to. That is the ring. This is a major point. Static 
+Variable <code> main_thread </code> and <code> curr_thread </code> also make the whole structure of data 
+As in Figure 1. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_thread_thread.jpg" alt="(thread)"> <br> 
+Figure 1: data structures to manage thread 
+</p> 
+
+<p> 
+<code> main_thread </code> (the main thread) and when you start the program existed and 
+Of threads, or "first" thread. <code> curr_thread </code> is natural 
+<code> current thread </code>, that is currently running thread. 
+<code> main_thread </code> value will not change, the process is running, <code> curr_thread </code> is getting more value 
+Things change. 
+</p> 
+
+<p> 
+This list is in a ring and the "threads" it easy to choose. 
+Just <code> next </code> I TAGURE link. That's only a certain amount all threads 
+Equality can be moved. 
+</p> 
+
+
+
+<h3> thread is to switch </h3> 
+
+<p> 
+By the way, what the thread is the first place. 
+Or, what if it switched to thread? 
+</p> 
+
+<p> 
+This is a very difficult problem. What program, and what objects, and 
+It's similar to what we normally appropriate "feel" about what the understanding that 
+De Sukkiri is called into question and answer. In particular, such as What is the process and thread 
+Thousand different to what I heard and feel at a loss. 
+</p> 
+
+<p> 
+Still, it is realistic to a degree range. All you need is a real thread 
+Lines of context. <code> ruby </code> and put it in context, so far seen 
+So, <code> ruby_frame </code> and <code> ruby_scope </code>, <code> ruby_class </code> had. 
+Also <code> ruby </code> is BETTER 
+NSUTAKKU on <code> ruby_frame </code> entity to ensure that the extended use of library 
+I think the stack space from the machine stack program also co-Ruby 
+NTEKISUTO as necessary. And finally, CPU registers are essential. 
+These various elements context of a thread, which cut 
+The change is the thread switch is not. Or 
+Context switch (context switch) and say. 
+</p> 
+
+
+
+How <h3> context switch </h3> 
+
+<p> 
+What remains is to switch the context of the story. <code> ruby_scope </code> and 
+<code> ruby_class </code> is easy to change. But heap space and make sure that an honest way 
+I do find shelter. The CPU will still manage to register. <code> setjmp () </code> use 
+Writeback can be saved. Therefore, both the region <code> rb_thread_t </code> to 
+Have already done that. 
+</p> 
+
+<p class="caption"> ▼ <code> struct thread </code> (part) </p> 
+<pre class="longlist"> 
+7301 struct thread ( 
+7302 struct thread * next, * prev; 
+7303 jmp_buf context; 
+
+7315 struct FRAME * frame; / * ruby_frame * / 
+7316 struct SCOPE * scope; / * ruby_scope * / 
+7317 struct RVarmap * dyna_vars; / * ruby_dyna_vars * / 
+7318 struct BLOCK * block; / * ruby_block * / 
+7319 struct iter * iter; / * ruby_iter * / 
+7320 struct tag * tag; / * prot_tag * / 
+7321 VALUE klass; / * ruby_class * / 
+7322 VALUE wrapper; / * ruby_wrapper * / 
+7323 NODE * cref; / * ruby_cref * / 
+7324 
+7325 int flags; / * scope_vmode / rb_trap_immediate / raised * / 
+7326 
+7327 NODE * node; / * rb_current_node * / 
+7328 
+7329 int tracing; / * tracing * / 
+7330 VALUE errinfo; / * $! * / 
+7331 VALUE last_status; / * $? * / 
+7332 VALUE last_line; / * $ _ * / 
+7333 VALUE last_match; / * $ ~ * / 
+7334 
+7335 int safe; / * ruby_safe_level * / 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In this way <code> ruby_frame </code> and <code> ruby_scope </code> correspond to the members are heard. 
+To register for storing <code> jmp_buf </code>. 
+</p> 
+
+<p> 
+Now, the problem is a stack machine. To SURIKAERU How do I do? 
+</p> 
+
+<p> 
+Mechanisms for the most docile of the stack position (tip) to specify the points 
+To rewrite the data directly. It is common CPU in the register. Only LES 
+Register there may be a general register In order to secure one of the cases 
+There, but I just do. Too lazy to the point that 
+Let's just call me a stack pointer. Once you have to change this to another region 
+You can stack of course. But of course this is against every CPU and OS 
+Situation does need a transplant to ensure it is very difficult. 
+</p> 
+
+<p> 
+So <code> ruby </code> violent means, quite a stack of machines and implements theすり替え 
+Be. If you are not stack pointer, the stack pointer to change the points at the 
+O's. You can fiddle with the stack directly've already GABEJIKO 
+REKUTA seen at the left is to do just a little change. 
+Stack also to keep in place <code> struct thread </code> fix. 
+</p> 
+
+<p class="caption"> ▼ <code> struct thread </code> (part) </p> 
+<pre class="longlist"> 
+7310 int stk_len; / * stack length * / 
+7311 int stk_max; / * stk_ptr memory assigned * / 
+7312 VALUE * stk_ptr; / * * stack copy / 
+7313 VALUE * stk_pos; / * * stack position / 
+
+(eval.c) 
+</pre> 
+
+
+
+
+<h3> explanation of how we </h3> 
+
+<p> 
+At least, the point is a lot to talk organized by three points. 
+</p> 
+
+<ul> 
+When <li> </li> 
+<li> any thread </li> 
+How do you <li> </li> 
+</ul> 
+
+<p> 
+Or to switch context,. That is the whole point of this chapter 
+Is. The following is a passage from each of the three-point talking about using the film industry. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> trigger </h2> 
+
+<p> 
+First, the first point, when the switch or thread. In other words, 
+The conversation switched to what is causing it. 
+</p> 
+
+
+<h3> I / O waiting </h3> 
+
+<p> 
+For example <code> IO # gets </code> and <code> IO # read </code> to something called a load, 
+I have read 
+And appear to be time-consuming while other threads are moving it to head 
+It should be a good addition. That is where change is required to enforce. The following is <code> getc </code> of C Lee 
+Interface. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_getc () </code> </p> 
+<pre class="longlist"> 
+1185 int 
+1186 rb_getc (f) 
+1187 FILE * f; 
+(1188 
+1189 int c; 
+1190 
+1191 if (! READ_DATA_PENDING (f)) ( 
+1192 rb_thread_wait_fd (fileno (f)); 
+1193) 
+1194 TRAP_BEG; 
+1195 c = getc (f); 
+1196 TRAP_END; 
+1197 
+1198 return c; 
+1199) 
+
+(io.c) 
+</pre> 
+
+
+<p> 
+<code> READ_DATA_PENDING (f) </code> buffer contents of the file, you still have to check whether 
+Macros. The contents of the buffer should happen, zero latency, but動ける 
+, Immediately read. Because it takes time, I would check <code> rb_thread_wait_fd () </code> call. 
+This is the thread switching to indirect factors. 
+</p> 
+
+<p> 
+<code> rb_thread_wait_fd () </code> "indirect" and say "direct" first choice factors 
+. What's that? <code> rb_thread_wait_fd () </code> in a look at. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_wait_fd () </code> </p> 
+<pre class="longlist"> 
+8047 void 
+8048 rb_thread_wait_fd (fd) 
+8049 int fd; 
+(8050 
+8051 if (rb_thread_critical) return; 
+8052 if (curr_thread == curr_thread-&gt; next) return; 
+8053 if (curr_thread-&gt; status == THREAD_TO_KILL) return; 
+8054 
+8055 curr_thread-&gt; status = THREAD_STOPPED; 
+8056 curr_thread-&gt; fd = fd; 
+8057 curr_thread-&gt; wait_for = WAIT_FD; 
+8058 rb_thread_schedule (); 
+8059) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+The last line <code> rb_thread_schedule () </code> somewhere. This function is "a direct Source 
+Consideration. " <code> ruby </code> thread implementation of core functions, and the selection of the following thread 
+Switching to go. 
+</p> 
+
+<p> 
+That's why this function or role of you to know what to say, if I wasスレッ 
+De-scheduling (scheduling) have the words and know in advance 
+From the hoops. If you're not, so I learned that you can notice from the following 
+He said. 
+</p> 
+
+<p> 
+And in this case is simply to transfer control of other threads as well as he was stopped and the 
+Syscall-hooking. In addition, "read until the end" with a clear policy. So the 
+Requests <code> rb_thread_schedule () </code>伝えなくto the government. That's <code> curr_thread </code> of 
+Assigned to the various member per. Why stop <code> wait_for </code>, and the cause 
+I use the information <code> fd </code>, each cart. 
+</p> 
+
+
+
+<h3> waiting for another thread </h3> 
+
+<p> 
+<code> rb_thread_schedule () </code> and the timing of the thread is known to switch, this time 
+On the contrary <code> rb_thread_schedule () </code> thread is a switch from point to see 
+That can be. So scan them, <code> rb_thread_join () </code> a Seki 
+The number of discovered. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_join () </code> (part) </p> 
+<pre class="longlist"> 
+8227 static int 
+8228 rb_thread_join (th, limit) 
+8229 rb_thread_t th; 
+8230 double limit; 
+(8231 
+
+8243 curr_thread-&gt; status = THREAD_STOPPED; 
+8244 curr_thread-&gt; join = th; 
+8245 curr_thread-&gt; wait_for = WAIT_JOIN; 
+8246 curr_thread-&gt; delay = timeofday () + limit; 
+8247 if (limit <delay_infty) curr_thread-=""> wait_for | = WAIT_TIME; 
+8248 rb_thread_schedule (); 
+
+(eval.c) 
+</delay_infty)></pre> 
+
+
+<p> 
+This function is <code> Thread # join </code> of the entity, <code> Thread # join </code> thread is the receiver's end SU 
+Of the method to wait. Certainly, if you have other threads waiting time to move 
+Therefore it is advised. The second reason for the switch見付かった. 
+</p> 
+
+
+
+<h3> waiting time </h3> 
+
+<p> 
+In addition <code> rb_thread_wait_for () </code> is also a function <code> rb_thread_schedule () </code> has been found 
+Hoops. This is (Ruby's) <code> sleep </code> and other entities. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_wait_for </code> (condensed version) </p> 
+<pre class="longlist"> 
+8080 void 
+8081 rb_thread_wait_for (time) 
+8082 struct timeval time; 
+(8083 
+8084 double date; 
+
+8124 date = timeofday () + 
+                  (double) time.tv_sec + (double) time.tv_usec * 1e-6; 
+8125 curr_thread-&gt; status = THREAD_STOPPED; 
+8126 curr_thread-&gt; delay = date; 
+8127 curr_thread-&gt; wait_for = WAIT_TIME; 
+8128 rb_thread_schedule (); 
+8129) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> timeofday () </code> right now is the time to return. And <code> time </code> to add value, 
+<code> date </code> is time to run out of time shows. This means that the 
+"Certain times you want to stop until" specified. 
+</p> 
+
+
+
+<h3> expired switching </h3> 
+
+<p> 
+Which is more than a certain level of the Ruby operation is being conducted, resulting in cutting threads 
+Resona, which were the cause of change. This means that this level of Ruby NONPURIEN 
+PUTIBU have not been. This is, if you continue to wrestle with calculations. 
+One thousand threads in the program, I would forever be in the running 
+U. So to some extent動いたらvoluntarily abandoned the right to execute someone like yourself 
+Must be. How much does it should not stop動いたら 
+? Then talk about it. 
+</p> 
+
+<h4> <code> setitimer </code> </h4> 
+
+<p> 
+We have no tricks, I'm asking the same feeling, but also more <code> rb_thread_schedule () </code> to 
+Someone called looking for him. Then見付かるThis is a strange place. 
+It is here. 
+</p> 
+
+<p class="caption"> ▼ <code> catch_timer () </code> </p> 
+<pre class="longlist"> 
+8574 static void 
+8575 catch_timer (sig) 
+8576 int sig; 
+(8577 
+8578 # if! Defined (POSIX_SIGNAL) &amp; &amp;! Defined (BSD_SIGNAL) 
+8579 signal (sig, catch_timer); 
+8580 # endif 
+8581 if (! Rb_thread_critical) ( 
+8582 if (rb_trap_immediate) ( 
+8583 rb_thread_schedule (); 
+8584) 
+8585 else rb_thread_pending = 1; 
+8586) 
+8587) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+NANIYARA関係らしいthe signal, but the hell of it? 
+This function <code> catch_timer () </code> using it to try to track and 
+This area had been used. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_start_0 () </code> (part) </p> 
+<pre class="longlist"> 
+8620 static VALUE 
+8621 rb_thread_start_0 (fn, arg, th_arg) 
+8622 VALUE (* fn) (); 
+8623 void * arg; 
+8624 rb_thread_t th_arg; 
+(8625 
+
+8632 # if defined (HAVE_SETITIMER) 
+8633 if (! Thread_init) ( 
+8634 # ifdef POSIX_SIGNAL 
+8635 posix_signal (SIGVTALRM, catch_timer); 
+8636 # else 
+8637 signal (SIGVTALRM, catch_timer); 
+8638 # endif 
+8639 
+8640 thread_init = 1; 
+8641 rb_thread_start_timer (); 
+8642) 
+8643 # endif 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In other words <code> catch_timer () </code> is <code> SIGVTALRM </code> HANDORARASHII signal. 
+</p> 
+
+<p> 
+Here <code> SIGVTALRM </code> which is or what kind of signal, it is also a problem. 
+This is actually a <code> setitimer </code> to use the system calls and sent signals 
+For both sides. Thus, just before <code> HAVE_SETITIMER </code> check on them. 
+<code> setitimer </code> SET Interval TIMER is an abbreviation for a certain time each signal to 
+OS system calls to send convey. 
+</p> 
+
+<p> 
+But <code> setitimer </code> is to call someone and say, happens to be on this list 
+Finally, a <code> rb_thread_start_timer () </code>. 
+</p> 
+
+<p> 
+To summarize all of the following scenario. <code> setitimer </code> for a set time each CIGNA 
+LE sent to. It <code> catch_timer () </code> catch. So 
+<code> rb_thread_schedule () </code> calling thread to switch. Perfect. 
+
+</p><p> 
+However signals can occur at any time and it would be, but 
+C levels also said that preemptive in the water. So 
+<code> catch_timer () </code> look at the code again. 
+</p> 
+
+<pre class="emlist"> 
+if (rb_trap_immediate) ( 
+     rb_thread_schedule (); 
+) 
+else rb_thread_pending = 1; 
+</pre> 
+
+<p> 
+<code> rb_thread_schedule () </code>'s <code> rb_trap_immediate </code> only when the conditions are 
+With. This is the point. <code> rb_trap_immediate </code> is the street name "signal. 
+Immediately whether the process "and represents a lot of it is false. This is true 
+It is a single thread, I / O, while you're gone, and only a very limited period 
+There is. Source code is <code> TRAP_BEG </code> and <code> TRAP_END </code> surrounded by it. 
+</p> 
+
+<p> 
+Meanwhile it is false when the <code> rb_thread_pending </code> set so that it 
+Let us further. The following variables are using it. 
+</p> 
+
+<p class="caption"> ▼ <code> CHECK_INTS </code> - <code> HAVE_SETITIMER </code> </p> 
+<pre class="longlist"> 
+   73 # if defined (HAVE_SETITIMER) &amp; &amp;! Defined (__BOW__) 
+   74 EXTERN int rb_thread_pending; 
+   75 # define CHECK_INTS do (\ 
+   76 if (! Rb_prohibit_interrupt) (\ 
+   77 if (rb_trap_pending) rb_trap_exec (); \ 
+   78 if (rb_thread_pending &amp; &amp;! Rb_thread_critical) \ 
+   79 rb_thread_schedule (); \ 
+   80) \ 
+   81) while (0) 
+
+(rubysig.h) 
+</pre> 
+
+
+<p> 
+In this way <code> CHECK_INTS </code> in <code> rb_thread_pending </code> checked and 
+<code> rb_thread_schedule () </code>. In other words <code> SIGVTALRM </code> to take the 
+<code> rb_thread_pending </code> is true, then <code> CHECK_INTS </code> when I went to a thread 
+It is switched. 
+</p> 
+
+<p> 
+This <code> CHECK_INTS </code> have so far appeared in many places. 
+For example <code> rb_eval () </code> and <code> rb_call0 () </code> and <code> rb_yield_0 () </code>. <code> CHECK_INTS </code> on a regular 
+To pass it and put it does not make sense and the nature and function of important 
+Together. 
+</p> 
+
+<h4> tick </h4> 
+
+<p> 
+<code> setitimer </code> If you have information about this Saturday. But <code> setitimer </code> if there are no 
+How? Actually, I just saw <code> CHECK_INTS </code>-<code> # else </code>'s definition is the answer 
+. 
+</p> 
+
+<p class="caption"> ▼ <code> CHECK_INTS </code> - <code> not HAVE_SETITIMER </code> </p> 
+<pre class="longlist"> 
+   84 EXTERN int rb_thread_tick; 
+   85 # define THREAD_TICK 500 
+   86 # define CHECK_INTS do (\ 
+   87 if (! Rb_prohibit_interrupt) (\ 
+   88 if (rb_trap_pending) rb_trap_exec (); \ 
+   89 if (! Rb_thread_critical) (\ 
+   90 if (rb_thread_tick - &lt;= 0) (\ 
+   91 rb_thread_tick = THREAD_TICK; \ 
+   92 rb_thread_schedule (); \ 
+   93) \ 
+   94) \ 
+   95) \ 
+   96) while (0) 
+
+(rubysig.h) 
+</pre> 
+
+
+<p> 
+<code> CHECK_INTS </code> to go through every time <code> rb_thread_tick </code> is decreasing. 
+0 when <code> rb_thread_schedule () </code>. 
+In other words <code> THREAD_TICK </code> (= 500) times <code> CHECK_INTS </code> to通ったら 
+The conversation switched to the system. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> scheduling </h2> 
+
+<p> 
+The second point is how to switch or thread. 
+The decision to undertake the one hand <code> rb_thread_schedule () </code>. 
+</p> 
+
+
+<h3> <code> rb_thread_schedule () </code> </h3> 
+
+<p> 
+<code> ruby </code> It's always important function is also big, and so on. 
+This <code> rb_thread_schedule () </code> more than 220 lines. 
+Let's isolate it thoroughly. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> (primary) </p> 
+<pre class="longlist"> 
+7819 void 
+7820 rb_thread_schedule () 
+(7821 
+7822 rb_thread_t next; / * OK * / 
+7823 rb_thread_t th; 
+7824 rb_thread_t curr; 
+7825 int found = 0; 
+7826 
+7827 fd_set readfds; 
+7828 fd_set writefds; 
+7829 fd_set exceptfds; 
+7830 struct timeval delay_tv, * delay_ptr; 
+7831 double delay, now; / * OK * / 
+7832 int n, max; 
+7833 int need_select = 0; 
+7834 int select_timeout = 0; 
+7835 
+7836 rb_thread_pending = 0; 
+7837 if (curr_thread == curr_thread-&gt; next 
+7838 &amp; &amp; curr_thread-&gt; status == THREAD_RUNNABLE) 
+7839 return; 
+7840 
+7841 next = 0; 
+7842 curr = curr_thread; / * starting thread * / 
+7843 
+7844 while (curr-&gt; status == THREAD_KILLED) ( 
+7845 curr = curr-&gt; prev; 
+7846) 
+
+           / *…… Select and prepare a variable use…… * / 
+           / *…… If necessary, a select…… * / 
+           / *…… Then decided to start a thread…… * / 
+           / *…… Context switch…… * / 
+8045) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+(A) is only one thread is nothing if not immediately return to 
+Has been. Therefore, since this story is make sure that there are multiple threads 
+Possible premise. 
+</p> 
+
+<p> 
+(B) followed by variable initialization. <code> while </code> included initialization I think. 
+<code> curr </code> is <code> prev </code> to辿っbecause the living (<code> status! = THREAD_KILLED </code>) 
+Is set in the last thread. Why "first" and not say, 
+"<code> Curr </code> to start next <code> curr </code> end up dealing with" a lot of the loop 
+Come out. 
+</p> 
+
+<p> 
+Then the <code> select </code> GANANTARA, see the statement. 
+<code> ruby </code> thread switch <code> select </code> very dependent on so 
+The first <code> select </code> Let's just about prepared. 
+</p> 
+
+
+<h3> <code> select </code> </h3> 
+
+<p> 
+<code> select </code> is a certain file, ready to read and write
+Call waiting for the system. This is a prototype. 
+</p> 
+
+<pre class="emlist"> 
+int select (int max, 
+            fd_set * readset, fd_set * writeset, fd_set * exceptset, 
+            struct timeval * timeout); 
+</pre> 
+
+<p> 
+<code> fd_set </code> variable you want to check <code> fd </code> on the set. 
+The first argument <code> max </code> is "(<code> fd_set </code> in the <code> fd </code> maximum value) +1". 
+<code> timeout </code> is <code> select </code> maximum waiting time. 
+<code> timeout </code> is <code> NULL </code> If you wait indefinitely. <code> timeout </code> 0 then the value is also waiting for a second 
+But check back soon. The return value, so when you speak. 
+</p> 
+
+<p> 
+<code> fd_set </code> dilate on. <code> fd_set </code> the following macro operations. 
+</p> 
+
+<p class="caption"> ▼ <code> fd_set </code> operations </p> 
+<pre class="longlist"> 
+fd_set set; 
+
+FD_ZERO (&amp; set) / * initialize * / 
+FD_SET (fd, &amp; set) / * set to add to file descriptor fd * / 
+FD_ISSET (fd, &amp; set) / * fd is true if you set * / 
+</pre> 
+
+
+<p> 
+<code> fd_set </code> is a typical sequence of bits, n the file descriptors 
+Check if they want to stand for the n-bit (Figure 2). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_thread_fdset.jpg" alt="(fdset)"> <br> 
+Figure 2: fd_set 
+</p> 
+
+<p> 
+Brief <code> select </code>見せようuse an example. 
+</p> 
+
+<p class="caption"> ▼ <code> select </code> example of how to use </p> 
+<pre class="longlist"> 
+# include <stdio.h> 
+# include <sys types.h=""> 
+# include <sys time.h=""> 
+# include <unistd.h> 
+
+int 
+main (int argc, char ** argv) 
+( 
+     char * buf [1024]; 
+     fd_set readset; 
+
+     FD_ZERO (&amp; readset); / * readset to initialize * / 
+     FD_SET (STDIN_FILENO, &amp; readset); / * stdin Cart to set * / 
+     select (STDIN_FILENO + 1, &amp; readset, NULL, NULL, NULL); 
+     read (STDIN_FILENO, buf, 1024); / * * succeed without delay / 
+     exit (0); 
+) 
+</unistd.h></sys></sys></stdio.h></pre> 
+
+
+<p> 
+The code calls the system must be assumed that the success of the 
+Error-checking is not done yet. <code> FD_ZERO </code> → <code> FD_SET </code> → <code> select </code>. 
+Just look at the trend. <code> select </code> The fifth argument <code> timeout </code> is <code> NULL </code> because the 
+This <code> select </code> calls are forever <code> stdin </code> to wait for loading. The <code> select </code> is 
+It ended with the following <code> read </code> can not wait to read it completely 
+. Middle <code> print </code> between movements in the eyes of you know better. 
+In a little more detailed code examples include CD-ROM into it 
+Of the \ footnote (<code> select </code> code example: the accompanying CD-ROM <code> doc / select.html </code> about). 
+</p> 
+
+
+
+<h3> <code> select </code> prepare </h3> 
+
+<p> 
+, <code> rb_thread_schedule () </code> back to the code. 
+The number of waiting thread is the reason for each branch, 
+The content of the shows are short. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> - <code> select </code> prepare </p> 
+<pre class="longlist"> 
+7848 again: 
+           / * Select related variable initialization * / 
+7849 max = -1; 
+7850 FD_ZERO (&amp; readfds); 
+7851 FD_ZERO (&amp; writefds); 
+7852 FD_ZERO (&amp; exceptfds); 
+7853 delay = DELAY_INFTY; 
+7854 now = -1.0; 
+7855 
+7856 FOREACH_THREAD_FROM (curr, th) ( 
+7857 if (! Found &amp; &amp; th-&gt; status &lt;= THREAD_RUNNABLE) ( 
+7858 found = 1; 
+7859) 
+7860 if (th-&gt; status! = THREAD_STOPPED) continue; 
+7861 if (th-&gt; wait_for &amp; WAIT_JOIN) ( 
+                   / *…… Join waiting…… * / 
+7866) 
+7867 if (th-&gt; wait_for &amp; WAIT_FD) ( 
+                   / *…… I / O waiting…… * / 
+7871) 
+7872 if (th-&gt; wait_for &amp; WAIT_SELECT) ( 
+                   / *…… Select waiting…… * / 
+7882) 
+7883 if (th-&gt; wait_for &amp; WAIT_TIME) ( 
+                   / *…… Waiting time…… * / 
+7899) 
+7900) 
+7901 END_FOREACH_FROM (curr, th); 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+But do not be noticeable <code> FOREACH </code> or how the macro. 
+The two will then be defined. 
+</p> 
+
+<p class="caption"> ▼ <code> FOREACH_THREAD_FROM </code> </p> 
+<pre class="longlist"> 
+7360 # define FOREACH_THREAD_FROM (f, x) x = f; do (x = x-&gt; next; 
+7361 # define END_FOREACH_FROM (f, x)) while (x! = F) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Clearly to try to expand. 
+</p> 
+
+<pre class="emlist"> 
+th = curr; 
+do ( 
+     th = th-&gt; next; 
+     ( 
+         ..... 
+     ) 
+) While (th! = Curr); 
+</pre> 
+
+<p> 
+Thread ring list <code> curr </code> haul from the last <code> curr </code> end of the process, 
+When the variable <code> th </code> using an意味らしい. Enumeration is a little Ruby 
+…… Reminiscent of something that is in too much imagination? 
+</p> 
+
+<p> 
+This code will return more of this strange loop subtly using <code> select </code> necessary 
+Check the thread. We watched as <code> select </code> exception of reading, writing 
+待てるall the time, so suddenly, I / O is waiting and waiting time <code> select </code> one to integrate 
+I think it is. Also in the preceding paragraph did not explain <code> select </code> of waiting. 
+Ruby library also <code> IO.select </code> to have a method, C-level and 
+<code> rb_thread_select () </code> that are available. We <code> select </code> also 
+I have not run. <code> fd_set </code> do more to synthesize <code> select </code> at the same time 
+You can get through. 
+</p> 
+
+<p> 
+The remaining <code> join </code> just waiting. This code is ICHIOU let me see. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> - <code> select </code> prepare - <code> join </code> waiting </p> 
+<pre class="longlist"> 
+7861 if (th-&gt; wait_for &amp; WAIT_JOIN) ( 
+7862 if (rb_thread_dead (th-&gt; join)) ( 
+7863 th-&gt; status = THREAD_RUNNABLE; 
+7864 found = 1; 
+7865) 
+7866) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> rb_thread_dead () </code> meaning is obvious from the name. Arguments end of the thread 
+Whether the decision. 
+</p> 
+
+
+
+<h3> <code> select </code> call </h3> 
+
+<p> 
+So far, <code> select </code> whether you need is identified, if necessary, the <code> fd_set </code> are also prepared 
+I have. So if necessary <code> select </code> call. For example, you can start immediately 
+(<code> THREAD_RUNNABLE </code>) there is a thread <code> select </code> is not呼ばなく. 
+Actually we've already I / O and waiting for the end of the thread, and there is more 
+Might be a high priority. But the case is <code> select </code> immediately 
+To be back, I / O is complete only if it were in check. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> - <code> select </code> </p> 
+<pre class="longlist"> 
+7904 if (need_select) ( 
+7905 / * delay to convert timeval. * / 
+7906 / * start immediately if there is a thread I / O check only do * / 
+7907 if (found) ( 
+7908 delay_tv.tv_sec = 0; 
+7909 delay_tv.tv_usec = 0; 
+7910 delay_ptr = &amp; delay_tv; 
+7911) 
+7912 else if (delay == DELAY_INFTY) ( 
+7913 delay_ptr = 0; 
+7914) 
+7915 else ( 
+7916 delay_tv.tv_sec = delay; 
+7917 delay_tv.tv_usec = (delay - (double) delay_tv.tv_sec) * 1e6; 
+7918 delay_ptr = &amp; delay_tv; 
+7919) 
+7920 
+7921 n = select (max +1, &amp; readfds, &amp; writefds, &amp; exceptfds, delay_ptr); 
+7922 if (n &lt;0) ( 
+                   / *…… Signals such as the squeeze…… * / 
+7944) 
+7945 if (select_timeout &amp; &amp; n == 0) ( 
+                   / *…… Timeout…… * / 
+7960) 
+7961 if (n&gt; 0) ( 
+                   / *…… End successfully…… * / 
+7989) 
+7990 / * wait some time at the end of the thread. 
+7991 in order to identify the threads to loop around again * / 
+7992 if (! Found &amp; &amp; delay! = DELAY_INFTY) 
+7993 goto again; 
+7994) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+The first half of the block read in the comments. 
+<code> delay </code> is one of the threads are then able to start until <code> usec </code> So, 
+It <code> timeval </code> to convert. 
+</p> 
+
+<p> 
+Is actually the second half <code> select </code> to bring the divergent results. This code 
+And so long divided. If the signal to cut back in the first 
+YARINAOSU or errors either, so the significance of the remaining two. 
+</p> 
+
+<h4> timeout </h4> 
+
+<p> 
+<code> select </code> timeout or if the waiting time <code> select </code> waiting 
+The conversation starts it might be possible. I check the 
+Taxed in the thread.見付かったら<code> THREAD_RUNNABLE </code> up. 
+</p> 
+
+<h4> end successfully </h4> 
+
+<p> 
+<code> select </code> successful that the I / O or ready, <code> select </code> is waiting 
+For instance, either. <code> fd_set </code> to check the thread waiting is over 
+Search.見付かったら<code> THREAD_RUNNABLE </code> up. 
+</p> 
+
+
+
+<h3> decision this thread </h3> 
+
+<p> 
+As far as considering all information of the final decision as to start a conversation. 
+Bootable from the original source, such as waiting is over any <code> RUNNABLE </code> in 
+Should be the appropriate to pick from. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> - a decision the following thread </p> 
+<pre class="longlist"> 
+7996 FOREACH_THREAD_FROM (curr, th) ( 
+7997 if (th-&gt; status == THREAD_TO_KILL) (/ * (A) * / 
+7998 next = th; 
+7999 break; 
+8000) 
+8001 if (th-&gt; status == THREAD_RUNNABLE &amp; &amp; th-&gt; stk_ptr) ( 
+8002 if (! Next | | next-&gt; priority <th-> priority) / * (B) * / 
+8003 next = th; 
+8004) 
+8005) 
+8006 END_FOREACH_FROM (curr, th); 
+
+(eval.c) 
+</th-></pre> 
+
+
+<p> 
+(A) is now trying to end the thread if there is a priority basis 
+Round exit in the standings. 
+</p> 
+
+<p> 
+(B) It Big likely to find out who. However <code> priority </code> to consider the value SURURASHII. 
+Ruby is also a member of this level <code> Thread # priority Thread # priority = </code>, 
+Change. In particular <code> ruby </code> itself can be changed like that. 
+</p> 
+
+<p> 
+If at the end of next見付からなかったらthread, that is <code> next </code> is 
+Set did not, what would it be? Already <code> select </code> of the 
+So waiting time and I / O is waiting for one thread waiting for the end of that. 
+It remains that there are no other threads are only waiting, and I can start 
+Of threads, not the ends can not wait. In other words 
+Deadlock (dead lock). 
+</p> 
+
+<p> 
+Of course, this is in addition to a deadlock happen, but generallyデッドロッ 
+QUEUE to detect it is very difficult. In particular <code> ruby </code> If the <code> Mutex </code> such as 
+Ruby level has to be implemented in full is almost impossible to detect. 
+</p> 
+
+
+
+<h3> thread switch </h3> 
+
+<p> 
+Then start the conversation is to be determined. 
+I / O and <code> select </code> also check. 
+After the conversations aimed at shifting control to do just that. 
+But <code> rb_thread_schedule () </code> and the last thread switching codes 
+Clause once again begin to it. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> context switch </h2> 
+
+<p> 
+The third point is the last thread switching, 
+Context switch (context switch). 
+This is <code> ruby </code> of the most interesting conversations about it. 
+</p> 
+
+
+<h3> basic line </h3> 
+
+<p> 
+, <code> rb_thread_schedule () </code> go from the end. 
+This section is an embarrassment, so the story spread to the condensed version. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_schedule () </code> (context switch) </p> 
+<pre class="longlist"> 
+if (THREAD_SAVE_CONTEXT (curr)) ( 
+     return; 
+) 
+rb_thread_restore_context (next, RESTORE_NORMAL); 
+</pre> 
+
+
+<p> 
+<code> THREAD_SAVE_CONTEXT () </code> of the matter is 
+Some of its contents do not know to think about the deployment. 
+</p> 
+
+<p class="caption"> ▼ <code> THREAD_SAVE_CONTEXT () </code> </p> 
+<pre class="longlist"> 
+7619 # define THREAD_SAVE_CONTEXT (th) \ 
+7620 (rb_thread_save_context (th), thread_switch (setjmp ((th) -&gt; context))) 
+
+7587 static int 
+7588 thread_switch (n) 
+7589 int n; 
+(7590 
+7591 switch (n) ( 
+7592 case 0: 
+7593 return 0; 
+7594 case RESTORE_FATAL: 
+7595 JUMP_TAG (TAG_FATAL); 
+7596 break; 
+7597 case RESTORE_INTERRUPT: 
+7598 rb_interrupt (); 
+7599 break; 
+             / *…… Abnormal processing system to make…… * / 
+7612 case RESTORE_NORMAL: 
+7613 default: 
+7614 break; 
+7615) 
+7616 return 1; 
+7617) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In other words, he deployed three combined. 
+</p> 
+
+<pre class="emlist"> 
+rb_thread_save_context (curr); 
+switch (setjmp (curr-&gt; context)) ( 
+   case 0: 
+     break; 
+   case RESTORE_FATAL: 
+     .... 
+   case RESTORE_INTERRUPT: 
+     .... 
+   / *…… Abnormal processing system…… * / 
+   case RESTORE_NORMAL: 
+   default: 
+     return; 
+) 
+rb_thread_restore_context (next, RESTORE_NORMAL); 
+</pre> 
+
+<p> 
+<code> setjmp () </code> returned <code> rb_thread_restore_context () </code> both 
+<code> RESTORE_NORMAL </code> are emerging that is obviously suspicious. 
+<code> rb_thread_restore_context () </code> in <code> longjmp () </code> and the 
+<code> setjmp () </code> and <code> longjmp () </code> is expected to respond. 
+And from the name of the function and meaning of the imagination, 
+</p> 
+
+<pre class="emlist"> 
+Save the current context of a thread 
+setjmp 
+Return the following thread context 
+longjmp 
+</pre> 
+
+<p> 
+It's the broad outline of the flow. However, care must be taken here 
+This is <code> setjmp () </code> and <code> longjmp () </code> pairs in this thread to complete the 
+It is not. <code> setjmp () </code> in the context of their own to save 
+Use, <code> longjmp () </code> in the context of this thread is used to return. - 
+Marika following <code> setjmp () </code> / <code> longjmp () </code> the link-chain that can be 
+(Figure 3). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_thread_setjmploop.jpg" alt="(setjmploop)"> <br> 
+Figure 3: <code> setjmp </code> chain of the backstitch 
+</p> 
+
+<p> 
+<code> setjmp () </code> / <code> longjmp () </code> will be able to return around the CPU, 
+Ruby will remain in the context of the stack, stack machine. 
+The evacuation is <code> rb_thread_save_context () </code>, 
+Comeback <code> rb_thread_restore_context () </code>. Let's turn to look at. 
+</p> 
+
+
+
+<h3> <code> rb_thread_save_context () </code> </h3> 
+
+<p> 
+First of all to save the context <code> rb_thread_save_context () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_save_context () </code> (condensed version) </p> 
+<pre class="longlist"> 
+7539 static void 
+7540 rb_thread_save_context (th) 
+7541 rb_thread_t th; 
+(7542 
+7543 VALUE * pos; 
+7544 int len; 
+7545 static VALUE tval; 
+7546 
+7547 len = ruby_stack_length (&amp; pos); 
+7548 th-&gt; stk_len = 0; 
+7549 th-&gt; stk_pos = (rb_gc_stack_start <pos)? rb_gc_stack_start="" 7550:="" -="" len;="" 7551="" if="" (len=""> th-&gt; stk_max) ( 
+7552 REALLOC_N (th-&gt; stk_ptr, VALUE, len); 
+7553 th-&gt; stk_max = len; 
+7554) 
+7555 th-&gt; stk_len = len; 
+7556 FLUSH_REGISTER_WINDOWS; 
+7557 MEMCPY (th-&gt; stk_ptr, th-&gt; stk_pos, VALUE, th-&gt; stk_len); 
+
+           / *………… Back………… * / 
+       ) 
+
+(eval.c) 
+</pos)?></pre> 
+
+
+<p> 
+In the second half <code> th </code> in <code> ruby_scope </code> variables such as globalまくっassigned to the single-minded. 
+Back in the protection of fun. The rest, here is part of the machine stack載せた 
+A whole <code> th-&gt; stk_ptr </code> of trying to copy us. 
+</p> 
+
+<p> 
+First <code> ruby_stack_length () </code> But the argument <code> pos </code> address to write the end of the stack 
+Only the length of return. This value is used to determine the extent this stack the lower end of the address side 
+A <code> th-&gt; stk_ptr </code> set. NANIYARA branch is on the stack NOBIRU 
+NOBIRU bottom of the stack and from there (Figure 4). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_thread_twodirection.jpg" alt="(twodirection)"> <br> 
+Figure 4: NOBIRU stack on the bottom of the stack NOBIRU 
+</p> 
+
+<p> 
+Then after the <code> th-&gt; stk_ptr </code> at the memory stack can copy 
+. <code> th-&gt; stk_max </code> memory of the length of <code> len </code> only copy. 
+</p> 
+
+<p> 
+<code> FLUSH_REGISTER_WINDOWS </code> Chapter 5 of the moth - BEJIKOREKUSHON, I explained that I was better. 
+Stack of cache memory drop macro (assembler entities). 
+View the entire stack to call when you have to be sure. 
+</p> 
+
+
+
+<h3> <code> rb_thread_restore_context () </code> </h3> 
+
+<p> 
+And finally to return to the conversation function, 
+<code> rb_thread_restore_context () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_thread_restore_context () </code> </p> 
+<pre class="longlist"> 
+7635 static void 
+7636 rb_thread_restore_context (th, exit) 
+7637 rb_thread_t th; 
+7638 int exit; 
+(7639 
+7640 VALUE v; 
+7641 static rb_thread_t tmp; 
+7642 static int ex; 
+7643 static VALUE tval; 
+7644 
+7645 if (! Th-&gt; stk_ptr) rb_bug ( "unsaved context"); 
+7646 
+7647 if (&amp; v <rb_gc_stack_start) (="" 7648="" *="" machine="" stack="" is="" under="" nobiru="" 7649="" if="" (&="" v=""> th-&gt; stk_pos) stack_extend (th, exit); 
+7650) 
+7651 else ( 
+7652 / * * NOBIRU machine on the stack / 
+7653 if (&amp; v <th-> stk_pos + th-&gt; stk_len) stack_extend (th, exit); 
+7654) 
+
+           / * Global variables…… Back to return * / 
+
+7677 tmp = th; 
+7678 ex = exit; 
+7679 FLUSH_REGISTER_WINDOWS; 
+7680 MEMCPY (tmp-&gt; stk_pos, tmp-&gt; stk_ptr, VALUE, tmp-&gt; stk_len); 
+7681 
+7682 tval = rb_lastline_get (); 
+7683 rb_lastline_set (tmp-&gt; last_line); 
+7684 tmp-&gt; last_line = tval; 
+7685 tval = rb_backref_get (); 
+7686 rb_backref_set (tmp-&gt; last_match); 
+7687 tmp-&gt; last_match = tval; 
+7688 
+7689 longjmp (tmp-&gt; context, ex); 
+5914) 
+
+(eval.c) 
+</th-></rb_gc_stack_start)></pre> 
+
+
+<p> 
+Arguments <code> th </code> to run back to the other. The core of the second half <code> MEMCPY () </code> and 
+<code> longjmp () </code>. <code> MEMCPY () </code>近けれbe close to the end the better. From this operation 
+<code> longjmp () </code> between the stack has been broken from the state. 
+</p> 
+
+<p> 
+Nevertheless, <code> rb_lastline_set () </code> and <code> rb_backref_set () </code> on. 
+This is <code>$_</code> and <code>$~</code> return. These two variables are local variables, a mere thread 
+Local and 
+Because there is a slot in one of the local variables present in so many conversations I 
+Be. This location is actually not to be back at it from the stack. 
+Local variables from the slot region <code> alloca () </code> to ensure that. 
+</p> 
+
+<p> 
+And the base is more than good thing, but simply stack them to write back and switch 
+At the current thread from the thread's stack is shorter in length it took, 
+Copy the moment just running function (<code> rb_thread_restore_context </code>) The News 
+Tack to override the frame. That is the argument <code> th </code> contents were broken. So I 
+First, it should not have to have伸ばさないstack. Do you have it 
+The first half of <code> stack_extend () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> stack_extend () </code> </p> 
+<pre class="longlist"> 
+7624 static void 
+7625 stack_extend (th, exit) 
+7626 rb_thread_t th; 
+7627 int exit; 
+(7628 
+7629 VALUE space [1024]; 
+7630 
+7631 memset (space, 0, 1); / * prevent array from optimization * / 
+7632 rb_thread_restore_context (th, exit); 
+7633) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+1K bytes of local variables (machine placed in the stack) to secure the stack 
+To extend the MURIYARI. However, as might be expected, <code> stack_extend () </code> and <code> return </code> and 
+The stack of those stretched shrivel. So then and there 
+<code> rb_thread_restore_context () </code> to call back. 
+</p> 
+
+<p> 
+By the way <code> rb_thread_restore_context () </code> and the job is complete <code> longjmp () </code> call 
+To reach out and, once呼び出したらabsolutely will not come again. Naturally 
+<code> stack_extend () </code> never return calls. Thus 
+<code> rb_thread_restore_context () </code>, <code> stack_extend () </code> after returning from treatment 
+And everything else is no need to worry about. 
+</p> 
+
+
+
+<h3> problems </h3> 
+
+<p> 
+More than <code> ruby </code> thread switch implementation. There is no reason to believe are light. Mass - 
+<code> malloc () realloc () </code> to the mass <code> memcpy () </code> and <code> setjmp () longjmp () </code> of 
+NOBASU last line in order to stack the function call away. "Dead serious" 
+ARUMAI representation of the problem. However, the OS-dependent system calls instead of calling 
+Nor is it out the window assembler and Sparc related only registers. This 
+If portability is certainly likely. 
+</p> 
+
+<p> 
+There are other problems as well. It is the thread's stack all the same address percent 
+Resona picked for the stack using a pointer to the code will not move 
+It is not possible. In fact, Tcl / TkハマっIt is wonderful to have been, 
+Ruby's Tcl / Tk interface from the main thread is out of necessity limited access 
+You can avoid that. 
+</p> 
+
+<p> 
+Of course chemistry between native and say hi. 
+Only on certain native <code> ruby </code> thread should try not to move 
+Not work. UNIX is a thread library is still overuse and abuse 
+Win32, and the thread is something few moves, so caution is necessary. 
+
+
+</p><hr>
+<p>
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp; additions,&nbsp; and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+</p>
+
