@@ -1,0 +1,632 @@
+
+<h1>Chapter 20. Ruby's future</h1> 
+
+<h2>Issues to be resolved </h2> 
+
+<p> 
+<code> ruby </code> "I completed the software" is not. Still developing, 
+, With many problems. First, inherent in the current interpreter 
+Let's remove the problem. The order of discussion about this chapter in accordance with the order. 
+</p> 
+
+
+<h3> GC performance </h3> 
+
+<p> 
+GC's current performance is "particularly bad lately, but not particularly well" and said it would be 
+? "Not bad, especially" the "daily life is not annoyance", 
+"In particular good or not" is "a heavy load and weaknesses that expose the" means 
+. For example, large number of objects be preserved and continue to make application. 
+Applications that speed is rapidly declining. GC object to mark all the time 
+It will be the object is capable of a further recovery in the number of times GC 
+Increasing it from. This issue is mentioned in Chapter 5 GC is a different generation effects 
+Fruit and should be (at least in theory, I think that is.) 
+</p> 
+
+<p> 
+The reaction in terms of speed and there is room for improvement. The current interpreter is running all the GC 
+Because the body stops, editor GUI application that seems at times "ぐっ" 
+Polarized reaction is to be interrupted. For example, it will have about 0.1 seconds, 
+Type the characters or the middle止まらa very bad impression. It is now 
+UIU application is not made, or as large as some of MOSA 
+ITAME This is not a problem to have. But one thing that came out 
+It will introduce incremental GC might need to consider. 
+</p> 
+
+
+<h3> parser implementation </h3> 
+
+<p> 
+As seen in the second part <code> ruby </code> parser implementation is 
+Already <code> yacc </code> overuse close to the limit, and to tolerate any further extension of the stranger 
+. If you do not have expansion plans but, after this "keyword argument" 
+The big game is scheduled to be introduced to, <code> yacc </code> restrictions because I want to express and grammar 
+Not what it would be sad. 
+</p> 
+
+
+<h3> parser reuse </h3> 
+
+<p> 
+Ruby parser is very complicated. In particular <code> lex_state </code> around to seriously deal with 
+It is very difficult. Because of that, Ruby or embed program, 
+Ruby program to handle the program itself is very difficult. 
+</p> 
+
+<p> 
+For example, the author is developing a tool <code> racc </code> everything. <code> yacc </code> version of Ruby 
+As so R <code> racc </code>. The <code> racc </code> grammar, syntax and file is almost 
+<code> yacc </code> and the same, 
+Action is only a portion of the Ruby code. It is Ruby's Coe 
+Do not properly Perth unable to determine at the end of the action, "Chan 
+"It is very difficult to parse. I have no choice but to "roughly" in Perth, 
+Out a compromise that level. 
+</p> 
+
+<p> 
+Ruby analysis of other programs as examples the need to 
+<code> indent </code> and <code> lint </code> tools such as 
+Cited, as well as to make this very difficult time. Refactoring 
+Tools such as the complex no longer think it will be hopeless. 
+</p> 
+
+<p> 
+Then how? The same thing is impractical to re-create, <code> ruby </code> original 
+Parser can be used as components do I not? In other words treatment 
+Parser system, but the library itself. This is a function of whether I want both. 
+</p> 
+
+<p> 
+But the problem here is, <code> yacc </code> parser to use as long as we do not re-entrant 
+It. In other words <code> yyparse () </code> on recursion, or from multiple threads 
+Call or not. So Ruby in Perth to return control to fruit 
+Must be binding. 
+</p> 
+
+
+Hiding <h3> number </h3> 
+
+<p> 
+Current <code> ruby </code> move the program's source code is not動かせない. 
+That is another source code to know the reason why people who do not want to read. 
+</p> 
+
+
+<h3> interpreter objects </h3> 
+
+<p> 
+Current <code> ruby </code> only one interpreter to handle the process, it is 
+In Chapter 13. More than one interpreter with the reality that it can be 
+It is like if you already have, that's not really possible to implement. 
+? 
+</p> 
+
+
+<h3> evaluator structure </h3> 
+
+<p> 
+Existing <code> eval.c </code> is just too complicated. Ruby's stack machine SUTAKKUFURE 
+The embedding system also find troubling the original software, <code> setjmp () longjmp () </code> overuse and abuse of 
+WAKARIYASUSA down and speed. In particular, many RISC machines that register 
+<code> setjmp () </code> overuse and abuse and speed down easily. <code> setjmp () </code>, to register all 
+To take shelter. 
+</p> 
+
+
+<h3> evaluator speed </h3> 
+
+<p> 
+<code> ruby </code> is usually used BUN is already fast enough. But still, language processing 
+Fast system is undoubtedly the faster the better. To speed up, namely the optimization 
+How do I do? That's when the first profile will be採らね 
+. So採った. 
+</p> 
+
+<pre class="emlist"> 
+   % Cumulative self self total 
+  time seconds seconds calls ms / call ms / call name 
+  20.25 1.64 1.64 2638359 0.00 0.00 rb_eval 
+  12.47 2.65 1.01 1113947 0.00 0.00 ruby_re_match 
+   8.89 3.37 0.72 5519249 0.00 0.00 rb_call0 
+   6.54 3.90 0.53 2156387 0.00 0.00 st_lookup 
+   6.30 4.41 0.51 1599096 0.00 0.00 rb_yield_0 
+   5.43 4.85 0.44 5519249 0.00 0.00 rb_call 
+   5.19 5.27 0.42 388066 0.00 0.00 st_foreach 
+   3.46 5.55 0.28 8605866 0.00 0.00 rb_gc_mark 
+   2.22 5.73 0.18 3819588 0.00 0.00 call_cfunc 
+</pre> 
+
+<p> 
+This is when you move a certain application of the profile, but in general 
+Ruby-profile program reasonably close. That is an overwhelming percent of the top 
+If, <code> rb_eval () </code> appeared, after the nerve centers of the GC and Evaluation System, in addition to specific treatment 
+The function is mixed. For example, if the application is a regular expression match 
+(<code> Ruby_re_match </code>), it takes a considerable time. 
+</p> 
+
+<p> 
+But as it was found or how to resolve the problem. Given the simple 
+<code> rb_eval () </code> faster, I do, that will happen, <code> ruby </code> core 
+Optimization is about superficial there has been little to do. <code> NODE_IF </code> of 
+Like those used by "at the end of reflexive → <code> goto </code> conversion," with little sense of himself out pike 
+There is. That is fundamentally changing the way the idea as long as there is no room for improvement. 
+</p> 
+
+
+<h3> thread implementation </h3> 
+
+<p> 
+But this is the chapter 19. Ruby's current implementation is very thread 
+Face many problems. In particular, poor chemistry between native and can do little. 
+<code> ruby </code> thread (1) is highly portable (2) Where the same behavior, will make a two-point 
+Other advantages of the crab's hard to replace, but the implementation is much more that they continue to use non - 
+There might be reasons. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> <code> ruby </code> 2 </h2> 
+
+<p> 
+Now these are followed by the original problem <code> ruby </code> of trends. 
+</p> 
+
+<h3> Rite </h3> 
+
+<p> 
+Currently, the ruby is the latest stable version is 1.6.7, 1.7.3 version is developed. 
+But following the not too distant future there might be a stable version is 1.8. Then the same time 
+Version 1.9.0 of the development starts. And the following is a little off-key 1.9.1 
+Stable. 
+</p> 
+
+<table> 
+<tbody><tr> <td> stable </td><td> </td><td> development version </td><td> </td><td> start time </td><td> </td></tr> 
+<tr> <td> 1.6.x </td><td> </td><td> 1.7.x </td><td> </td><td> 2000-09-19 to release 1.6.0 </td><td> </td></tr> 
+<tr> <td> 1.8.x </td><td> </td><td> 1.9.0 </td><td> </td><td> six months is going to </td><td> </td></tr> 
+<tr> <td> 1.9.1 ~ </td><td> </td><td> 2.0.0 </td><td> </td><td> two years after long </td><td> </td></tr> 
+</tbody></table> 
+
+<p> 
+And the development of next-generation version of <code> ruby </code> 2, code-named Rite,. 
+The name of the L and R to the Japanese people can not distinguish between discipline OMAJURASHII. 
+</p> 
+
+<p> 
+In short, or 2.0 What is the change and said, almost all of the core. The conversation, evaluation 
+Instruments, parsers, this is all changing. However, that number has emerged not KAKERA 
+This is just to write it all "future". Do not hold too much disappointment 
+One might. So, expect light, let me say that. 
+</p> 
+
+
+<h3> description language </h3> 
+
+<p> 
+First use of language. C definitely. Ruby mailing list of English 
+<code> ruby-talk </code> in Matsumoto's statement said. 
+</p> 
+
+<blockquote> 
+I hate C + +. 
+</blockquote> 
+
+<p> 
+DASOU so, C + + is the first to use with BE. Even with a full makeover 
+I also object system is believed to remain so near the Oh 
+Or an ounce of effort it requires. But this time, however C is the ANSI C to C 
+The potential is high. 
+</p> 
+
+
+<h3> GC </h3> 
+
+<p> 
+GC implementation, 
+First <code> Boehm GC </code> \ footnote (Boehm GC <code> http://www.hpl.hp.com/personal/Hans_Boehm/gc </code>) from 
+Try it. Boehm GC is 
+GC-generational and conservative and incremental, and 
+Native and is not working 
+All of the stack to mark the thread that a lot of good things Oh, GC 
+Be. Once introduced as a Boehm GC whether to continue using it or leave 
+Do not know, either, a certain direction can be expected to speed 
+Forward. 
+</p> 
+
+
+<h3> parser </h3> 
+
+<p> 
+In terms of specification, omitted parentheses method call it nesting, and uniform ban 
+U. Seen as <code> command_call </code> grammar throughout considerable influence and 
+Hoops. This is simplified if the scanner is also very parser should be refreshed. 
+However omitted parentheses itself is no longer impossible. 
+</p> 
+
+<p> 
+In terms of the implementation <code> yacc </code> whether to continue using it still dwell in it. Use 
+Handwriting and do not, they say, that only complicated things by hand implemented 
+Or of the anxiety remains. Which to choose the cusp of the road must have. 
+</p> 
+
+
+<h3> evaluator </h3> 
+
+<p> 
+Evaluator and is completely re-creation. The main purpose is to speed up and simplify the implementation of the 
+A second point of focus. 
+</p> 
+
+<ul> 
+<li> <code> rb_eval () </code> like to eliminate the recursion </li> 
+The move <li> BAITOKODOINTAPURITA </li> 
+</ul> 
+
+<p> 
+First <code> rb_eval () </code> eliminate recursion. How to eliminate the "tail recursion 
+→ <code> goto </code> conversion, "like, say is the most intuitive? One 
+<code> rb_eval () </code> in <code> goto </code> using coiled around it. The first function called 
+Will drop out and, <code> return </code> and <code> break </code> used for <code> setjmp () </code> they do not need them 
+Be. However C defined by the method call is in, but do not function known as the Opera House 
+Because of a rule that still separated <code> setjmp () </code> is necessary. 
+</p> 
+
+<p> 
+Bytecode (byte code) YOUSURUNI is like a machine-language program 
+It. Smalltalk80 made famous in the virtual machine parlance, by instruction 
+With units that are configured so called bytecode. Just had on the level 
+Human beings from the ATARIMAE bytes is not felt to them, but 
+Machine language instruction is a bit of a unit that is. For example, Alpha and instruction. 
+Back among the 32-bit code is 6-bit instruction shows that species. 
+</p> 
+
+<p> 
+Byte-code the main advantage is speed. There are two reasons, first is a syntax 
+Pointer to haul the tree is not necessary. Another is local optimization 
+(Peephole optimization) is easier. 
+</p> 
+
+<p> 
+The number of bytes to store and make sure that if you read it because it runs out in Perth 
+It is also believed to be a little bit faster. But the program begins in Perth 
+Only once does not work, the original Perth is not much time 
+So I have no major impact. 
+</p> 
+
+<p> 
+Bytecode evaluator's going to be or want to know if <code> regex.c </code> to look at 
+And be good. After the Python is BAITOKODOINTAPURITA. 
+</p> 
+
+
+
+<h3> thread </h3> 
+
+<p> 
+The thread is a native countries. Ruby was born in 1994, compared with the time 
+The conversation surrounding environment is much better and the native, 
+Able, as judged by them. 
+</p> 
+
+<p> 
+It is native to use the C levels in a preemptive 
+MARUCHISUREDDOSEFU itself, but from the interpreter must be, 
+The point is to lock in the meantime resolve the global market. 
+</p> 
+
+<p> 
+That, and to people in the know "continuous" But I am afraid signs of running out. <code> ruby </code> of 
+The conversation is continuing to implement because it depends heavily on a threadネイティブスレッ 
+DE will be a continuation of nature and disappear. That indicates that the "implementation of it 
+I "to it now, because we have not used in almost any problems. 
+</p> 
+
+
+<h3> M17N </h3> 
+
+<p> 
+Class libraries in passing let me mention just a few. Multilingualization 
+(Multilingualization, for short M17N) matters. Programming 
+M17N What do you make a tangible thing about it and to handle multiple character code 
+You can. 
+</p> 
+
+<p> 
+There are other topics like globalization (Internationalization, for short I18N) and 
+I would also 
+Be. This example, if an error in a user's preferred language 
+Resona, the date of expression to a national convention along with them. For example, to see that this 
+And, I18N to achieve the realization of M17N is essential. But the reverse is not made of 
+. 
+</p> 
+
+<p> 
+Specifically Ruby was multilingualized So what do you need? Part of the deal parser, and 
+Another is related to a string library, specifically the <code> String </code> and <code> Regexp </code> response, 
+Two are needed. 
+</p> 
+
+<p> 
+Parser is available for comment and a string literal, literal representation of any regular language 
+(Encoding to be exact) to forgive.易しThis is so difficult. 
+First, <code> ruby </code> the parser 
+Encoding method is needed to tell. Ever seen. 
+Ruby mentioned programs are left to wander without exception parser evaluated. That is par 
+Sa encoding syntax to convey, but usually can not use. So 
+Encoding syntax to specify the need to add some. 
+</p> 
+
+<p> 
+Library fairly easy to handle. Currently <code> mbclen () </code> a mechanism to 
+Obediently extension of what they are. 
+</p> 
+
+<p> 
+M17N corresponding <code> ruby </code> has already been implemented, CVS repository 
+<code> ruby_m17n </code> branch 
+Available. Incorporated into the implementation of the specifications are not mature and a 
+Say to the judge. If a good interface design even in the middle 1.9 
+But to get to be. 
+</p> 
+
+
+<h3> IO </h3> 
+
+<p> 
+Ruby's current <code> IO </code> class is a simple <code> stdio </code>, but the wrapper, 
+This approach is 
+</p> 
+
+<ul> 
+<li> platform between the subtle differences in the behavior of too many </li> 
+<li> buffering you want to have more control </li> 
+</ul> 
+
+<p> 
+There was dissatisfaction with the two points. So, Rite <code> stdio </code> to own a 
+Particularly likely. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> Ruby Hacking Guide </h2> 
+
+<p> 
+We are always here <code> ruby </code> from the outside to act as an observer. But HEART 
+RON <code> ruby </code> products to be included in the display case is different. That is our actions to help 
+So here we can influence. This last clause of the communities 
+NITI from the proposed <code> ruby </code> talking about lobbying for the current and future 
+We餞Ruby Hacker said. 
+</p> 
+
+
+<h3> generation GC </h3> 
+
+<p> 
+First, mentioned in Chapter 5, Masato Kiyama's another generation of the GC. 
+Patches have already said that the current street 
+</p> 
+
+<ul> 
+<li> than speed is not </li> 
+<li> latest <code> ruby </code> to match the need to update </li> 
+</ul> 
+
+<p> 
+That's the problem, but this place is the first large-scale informal patch 
+Above all, the point to a high rating. 
+</p> 
+
+
+Oni <h3> car </h3> 
+
+<p> 
+Ruby is now using the regular expression engine is revamped version of the GNU regex. The 
+GNU regex was originally written for Emacs, and it multibyte 
+In addition to the Perl-compatible matz has reshuffled. Easy from the back 
+As one can imagine a very complex structure of the horror of it. The 
+GNU regexp LGPL license because <code> ruby </code> license is very slightly 
+It has strainer, KANETEKARA is an issue of this engine has been replaced. 
+</p> 
+
+<p> 
+Then suddenly appeared in the hands of Kiyomi Kosako's regular expression engine "car ogre" 
+. This is done quite YOIRASHIKU,取りこまsoon as it is likely to itself. 
+</p> 
+
+<p> 
+The film's car <code> ruby </code> CVS repository should do the following available. 
+</p> 
+
+<pre class="screen"> 
+% Cvs-d: pserver: anonymous@cvs.ruby-lang.org: / src co oniguruma 
+</pre> 
+
+
+<h3> ripper </h3> 
+
+<p> 
+Followed by a little thing of mine-ripper. <code> parse.y </code> make modifications to the extension of the library. 
+<code> ruby </code> body does not mean any changes in the components of the parser 
+One direction as to keep here. 
+</p> 
+
+<p> 
+Stream interface system implemented in the token of the scan. 
+Parser that the reduction in the event that you can pick up a form. CD-ROM attached to it 
+We \ footnote (ripper: the accompanying CD-ROM <code> archives/ripper-0.0.5.tar.gz </code>) so 
+Try me. In addition, this version is six months ago <code> ruby </code> 1.7 - 
+And so today is somewhat different grammar. 
+</p> 
+
+<p> 
+This is just a scratch, "recalled his idea" that is the reasonだっ 
+And that, in spite of that I think it worked. Implement real-time or three days or so 
+With a quick. 
+</p> 
+
+
+<h3> alternative parser </h3> 
+
+<p> 
+Still nowhere to be seen, but the product, <code> ruby </code> is totally independent and can be used 
+Ruby parser written in C + + Some people are like (<code> [ruby-talk: 50497] </code>). 
+</p> 
+
+
+<h3> JRuby </h3> 
+
+<p> 
+More radical, rewrote the entire interpreter Well, 
+The movement. For example, written in Java Ruby 
+"JRuby \ footnote (JRuby <code> http://jruby.sourceforge.net </code>)" 
+It appeared that. Here's Jan Arne Petersen, 
+Quite a large family seem to be implemented. 
+</p> 
+
+<p> 
+I had the impression of a little 
+</p> 
+
+<ul> 
+<li> parser will be pretty good. Heredoc blank delicate and accurate representation of behavior that. </li> 
+<li> <code> instance_eval </code> do not work like (this is done?) </li> 
+<li> only a small built-in library (which can not blame) </li> 
+<li> library is not extended (ATARIMAE) </li> 
+But of the UNIX centric <li> Ruby has to be scrapped all existing scripts just works unlikely to be </li> 
+<li> slow </li> 
+</ul> 
+
+<p> 
+It is going to say. Incidentally, the last "slow" or how to say, 
+The original <code> ruby </code> 20 times as much (running time). So far slower and sour 
+Is difficult. But on the Java VM Ruby VM is running from it,遅くない 
+Definitely not. Machine is 20 times faster to wait for only one who ARUMAI. 
+</p> 
+
+<p> 
+But imagine a whole is far from well, being impressed. 
+</p> 
+
+
+<h3> NETRuby </h3> 
+
+<p> 
+But if you work with Java, C # work. So I wrote C #, Ruby, 
+"NETRuby \ footnote (NETRuby <code> http://sourceforge.jp/projects/netruby/ </code>)" 
+It appeared. The author is arton's. 
+</p> 
+
+<p> 
+I was in the hands. NET environment is not only the source code have not seen it, 
+According to the valve himself 
+</p> 
+
+<ul> 
+Above all, slow <li> </li> 
+There are not many class library <li> </li> 
+<li> exception handling is not compatible with not-so-</li> 
+</ul> 
+
+<p> 
+Everything around me is the問題らしい. But <code> instance_eval </code>動くらしいis (surprise). 
+</p> 
+
+
+<h3> <code> ruby </code> contributing to the development </h3> 
+
+<p> 
+<code> ruby </code> developers, who are just personal Yukihiro Matsumoto, final 
+<code> ruby </code> about the direction of absolute power. At the same time <code> ruby </code> is 
+Open Source Software, and anyone can participate in the development. Participate, 
+It is the opinion of the proposal or patches can be out of it. 
+The participants how to speak in concrete. 
+</p> 
+
+<p> 
+<code> ruby </code> If the mailing list, mainly because it developed into each MERIN 
+Grist is good to participate. Currently the center of the community MERI 
+Is NGURISUTO 
+<code> ruby-list </code>, <code> ruby-dev </code>, <code> ruby-talk </code> three. <code> ruby-list </code> is 
+"Ruby NANDEMO related to it, OK" mailing list, and Japanese. 
+<code> ruby-dev </code> is a development version <code> ruby </code> talk about the mailing list, which also concerned Japanese 
+Be. <code> ruby-talk </code> mailing list is in English. How do the Ruby 
+The official site \ footnote (Ruby's official website: <code> http://www.ruby-lang.org/ja/ </code>) 
+"Mailing list" page of the list. These lists 
+How many members are welcome also read it, just try to participate in a while 
+Discussions with a view, make the atmosphere MUTOIINODEHANAIDAROUKA. 
+</p> 
+
+<p> 
+But Ruby from Japan, began on a more "initiative is <code> ruby-talk </code> moved" 
+Told me not to let them. 
+But development is still the center <code> ruby-dev </code> that has not changed. Of course 
+<code> ruby </code> have to commit human rights (ie, the core members) are mostly Japanese 
+Do not bother, so users can speak English like the idea of the nature and <code> ruby-dev </code> suitable for walking 
+. Core members of the future using English is increasing and it will situation may change 
+Still, for the duration <code> ruby </code> development is the core <code> ruby-dev </code>. 
+</p> 
+
+<p> 
+But Japanese can not participate in the development does not work and that troubles me is we are 
+<code> ruby-dev </code> summary of the English once a week <code> ruby-talk </code> have to be bygones 
+Be. I also participate in the summary that it is now a revolving three 
+Do you have a very stringent. Summary of the permanent members to help him 
+NOW. I think it is whether we KATAHA <code> ruby-list </code>, participants expressed their 
+I would like. 
+</p> 
+
+<p> 
+Finally, if the source code for software that is not good. 
+Website maintenance and other documents is also needed. And that's not 
+The lack of someone who is always GIMI. 
+ICHIOU activities related documents only mailing list also has an TORIAE 
+ZU is <code> ruby-list </code> "want to do something", saying it would be good. I can do. 
+Only answer to the other members reacted to it. 
+</p> 
+
+
+
+<h3> last </h3> 
+
+<p> 
+Well, that's a long time in this document. Pages Oh, so that in mind 
+Part of a carefully-called minute is not the overall champion, <code> ruby </code> for the foundation 
+All the talk himself out. UDAUDA further to add that the rest tone. Still WAKARA 
+If you have not convinced until he read the source code to find out. 
+</p> 
+
+<hr>
+<p>
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp; additions,&nbsp; and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+</p>
+
