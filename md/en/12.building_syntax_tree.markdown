@@ -1,7 +1,6 @@
-
 <div>
 
-<h1> Chapter 12 Syntactic Tree</h1> 
+<h1> Chapter 12 Bulding a Syntax Tree</h1> 
 
 <h2> node </h2> 
 
