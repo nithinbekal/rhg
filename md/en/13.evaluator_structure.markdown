@@ -1,0 +1,1634 @@
+
+<h1>Chapter 13: Structure of Evaluator </h1>
+
+<h2> The fourth part summary </h2> 
+
+<h3> evaluator is </h3> 
+
+<p> 
+"Evaluator" What a strange word. In the face of an evaluator 
+"Evaluation" 
+An "instrument" is KEDOMO sure, we evaluate what it is 
+? 
+</p> 
+
+<p> 
+"Evaluation" to evaluate the definitive translation of the programming language talk about the assumption that the 
+GIMI misinterpretation. Japanese rating, meanwhile, say that "good bad" meaning that contains 
+Them out. 
+</p> 
+
+<p> 
+HRS evaluate the program in language that is completely regardless of the "Absolute" 
+Or "running" close to meaning. evaluate the origin of the Latin 
+ex + value + ate, the literal translation do "value". This is most easily understood? 
+May. From the text represented value for the ceremony, he said. 
+</p> 
+
+<p> 
+Well, speaking only to put it YOUSURUNI rating formula is written in the running to the conclusion 
+Get the results mean. Why say no and run it and run only 
+Reviews are not. 
+</p> 
+
+<p> 
+For example, common programming language, "3" and writing to be treated as an integer 3. This 
+But when "<code>" 3 "</code> was 3 of the assessment results" and saying. Expression is constant running 
+It is hard to say, but also the rating. "3" to face 
+6 rating when treated as a whole (the rating) even though the language is a separate structure 
+I do not. 
+</p> 
+
+<p> 
+挙げようanother example. Combined with a constant expression, compiled during the calculation 
+It can have a (constant folding). This is normal "run" and calculate that 
+Not to tell. Speaking of the binary run made while running from the point of work. 
+But when the program tried to calculate the final estimate will not change. 
+</p> 
+
+<p> 
+In other words, "evaluation" and is usually run a program that is equal to it, 
+Is fundamentally different from the run and evaluation. Let's just remember this point. 
+</p> 
+
+
+
+<h3> <code> ruby </code> Features Rating System </h3> 
+
+<p> 
+<code> ruby </code> evaluator of the biggest feature is the true interpreter, but overall, C level 
+(Extended library) and Ruby code-level expression of the difference is small. Ordinary 
+Processing system, the extended use interpreter from the library's function is considerably restricted in 
+But, <code> ruby </code> scarier, less restrictions. Class definitions, methods to define, limit 
+Protection method call, it is natural and around the exceptions, iterators, and end 
+To allow for the thread. 
+</p> 
+
+<p> 
+But the convenience is something to pay the price. Implementation is very strange 
+Or very large overhead, a similar thing for Ruby and C - 
+The second part of the implementation of the considerable. 
+</p> 
+
+<p> 
+Also <code> ruby </code> is a dynamic language, so when you run the setup program as a string 
+It can also be evaluated. <code> eval </code> That method is a function wind. 
+Of course, is to evaluate the corner. I use it can be. 
+</p> 
+
+<pre class="emlist"> 
+lvar = 1 
+answer = eval ( "lvar + lvar") # 2 The answer is 
+</pre> 
+
+<p> 
+Other <code> Module # module_eval </code>, <code> Object # instance_eval </code> that in the 
+The movements of their habit. This area is more 
+Chapter 17, and the dynamic evaluation述べよう. 
+</p> 
+
+
+
+<h3> <code> eval.c </code> </h3> 
+
+<p> 
+The instrument rating <code> eval.c </code> has been implemented. However, the <code> eval.c </code> is huge and very, very 
+200 K bytes 9000 line, the function of the number of 309 enemy fire. This has come about 
+And looked at from head to the degree that will not make any structural TSUKAMENAI. 
+</p> 
+
+<p> 
+Then how? First, if I see a huge file, and no type 
+It is unthinkable not injured. This means more small unit inside the module 
+LE has been a wonder. So I find it to be considered first. 
+How do you find the module will be better. 
+Listed several methods to try. 
+</p> 
+
+<p> 
+First of all functions defined in the list of the prefix of output. <code> rb_dvar_ </code>, 
+<code> rb_mod_ </code>, <code> rb_obj_ </code>, <code> rb_thread_ </code> functions such as a prefix ZURAZURA 
+Along with that. This is clearly a function of the same kind of unity. 
+</p> 
+
+<p> 
+The number of class libraries, which is known, <code> ruby </code> code, is 
+<code> Init_xxxx () </code> is always placed at the end of the block. So <code> Init_xxxx () </code> should happen 
+It also break. 
+</p> 
+
+<p> 
+And of course the name is important. <code> eval () </code> and <code> rb_eval () </code> and <code> eval_node () </code> is 
+Close to each other if there is a deep relationship, and I think it is only natural. 
+</p> 
+
+<p> 
+Finally, <code> ruby </code> source code and variables to define the type and prototype declarationはさまっ 
+That is often break. 
+</p> 
+
+<p> 
+This awareness around and look at it, <code> eval.c </code> is primarily attributable to the following modules 
+He could split. 
+</p> 
+
+<table> 
+Safe levels <tr> <td> <td> <td> Chapter 7, and illustrated the security <td> </tr> 
+<tr> <td> entry manipulation method <td> <td> entities for use of search methods and to remove <td> </tr> 
+<tr> <td> evaluator core <td> <td> <code> rb_eval () </code> centered on the core part of the evaluator <td> </tr> 
+<tr> <td> exception <td> <td> exceptions occur and generate trace back <td> </tr> 
+<tr> <td> method <td> <td> implementation method calls <td> </tr> 
+<tr> <td> iterator <td> <td> block functions related to the implementation <td> </tr> 
+<tr> <td> load <td> <td> external file and load rating <td> </tr> 
+<tr> <td> <code> Proc </code> <td> <td> <code> Proc </code> implementation <td> </tr> 
+<tr> <td> thread <td> <td> Ruby thread implementations <td> </tr> 
+</table> 
+
+<p> 
+Among them was originally part of the load and thread <code> eval.c </code> is not supposed to be part of. 
+<code> eval.c </code> there is simply because of the constraints of the C language. A little more and say, 
+<code> PUSH_TAG () </code>, <code> eval.c </code> internally defined in the macro need to use 
+There. So these two areas off the third and fourth division to handle it. 
+Safe levels are also described in Part I so good. 
+</p> 
+
+<p> 
+Shaving more than three of the six remaining items are subject to the third part of the explanation. 
+And the correspondence, as the following table. 
+</p> 
+
+<p class="caption"> ▼ allocation described in Part III </p> 
+<table> 
+<tr> <td> entry method of operation <td> <td> context, the following chapter <td> </tr> 
+<tr> <td> evaluator core <td> <td> the third part of all chapters <td> </tr> 
+<tr> <td> exception <td> <td> this chapter <td> </tr> 
+<tr> <td> method <td> <td> Chapter 15, the method <td> </tr> 
+<tr> <td> iterator <td> <td> Chapter 16, the block <td> </tr> 
+<tr> <td> <code> Proc </code> <td> <td> Chapter 16, the block <td> </tr> 
+</table> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> <code> main </code> DP <code> ruby_run </code> via <code> rb_eval </code> go </h2> 
+
+Call <h3> graph </h3> 
+
+<p> 
+The core is a true evaluator <code> rb_eval () </code>, which is a function of the 
+This section is <code> main () </code> from the <code> rb_eval () </code> to follow the road to the film industry. 
+The following is the <code> rb_eval () </code> Call rough around the graph. 
+</p> 
+
+<pre class="emlist"> 
+main .... main.c 
+     ruby_init .... eval.c 
+         ruby_prog_init .... ruby.c 
+     ruby_options .... eval.c 
+         ruby_process_options .... ruby.c 
+     ruby_run .... eval.c 
+         eval_node 
+             rb_eval 
+                 * 
+         ruby_stop 
+</pre> 
+
+<p> 
+The file was moved to the right place to put it in the file name. 
+ジッlook at this and realize the first, <code> eval.c </code> function from <code> main.c </code> of 
+That function to bring it back. 
+</p> 
+
+<p> 
+Return the call, and is written, <code> main.c </code> and <code> ruby.c </code> is a rather 
+<code> ruby </code> implementation and command files to opt out. <code> eval.c </code> is <code> ruby </code> and is Commands 
+Put a little distance, evaluating the implementation of the instrument itself. In other words <code> eval.c </code> is <code> ruby.c </code> to 
+Even used to stand, <code> eval.c </code> and <code> ruby.c </code> called those functions 
+<code> eval.c </code> independence down. 
+</p> 
+
+<p> 
+Why does this have? The main reason is that the C language constraints. 
+<code> ruby_prog_init () </code> and <code> ruby_process_options () </code>, the world's API using Ruby 
+Since starting, an exception may occur. However, an exception to stop Ruby 
+In order to <code> eval.c </code> can only be used in <code> PUSH_TAG () </code> to use the macro 
+Be. That is primarily a <code> ruby_init () </code> and <code> ruby_run () </code> it is <code> ruby.c </code> to 
+It should be. 
+</p> 
+
+<p> 
+Why does <code> PUSH_TAG () </code> and <code> extern </code> function and the public and what not. 
+Actually <code> PUSH_TAG () </code> is as follows <code> POP_TAG () </code> counterpart to not be used. 
+</p> 
+
+<pre class="emlist"> 
+PUSH_TAG (); 
+/ * All * / 
+POP_TAG (); 
+</pre> 
+
+<p> 
+Implementation of reasons, these two are the same macro function should not be inserted. 
+I'll separate function and therefore can be divided into as it can be implemented, 
+Then, very slowly, so it is not. 
+
+<p> 
+Then the notice, <code> main () </code> and <code> ruby_xxxx () </code> called a continuous function, called 
+The meaning is very likely that that. This is overtly 
+Symmetrical shape if anything to do with it is not funny. 
+</p> 
+
+<p> 
+These three functions are actually closely linked. In short, they say, this is three 
+Any "built-Ruby interface". In other words <code> ruby </code> interpreter 
+If you only use the built-command to make, and do not use the library expansion, 
+Function. <code> ruby </code> command is built on the theory itself is a kind of program and Ruby koh 
+The arrangement of this nature is to use interface. 
+</p> 
+
+<p> 
+<code> ruby_ </code> What is a prefix. <code> ruby </code> This is a function of everything 
+<code> rb_ </code>. Why <code> rb_ </code> and <code> ruby_ </code> two kinds? Look 
+But do not know the difference between a difference, so I asked why it directly, "<code> ruby </code> Ko 
+Mando is a subsidiary of <code> ruby_ </code> official interface <code> rb_ </code> "What DASO 
+U. 
+</p> 
+
+<p> 
+Then <code> eval.c </code> internal use only <code> ruby_scope </code> Why are <code> ruby_ </code> today? To 
+TSUKKO shortly see, this is just a偶然らしい. <code> ruby_scope </code> are 
+Originally <code> the_ </code>, but it was called, in the midst of all 1.3 interface 
+A change is a prefix. When the "-ish sort of internal" 
+Variable <code> ruby_ </code> gave it a likely. 
+</p> 
+
+<p> 
+That is the only conclusion and say, <code> ruby_ </code> that does not have <code> ruby </code> auxiliary command 
+Private or internal variables. <code> rb_ </code> that does not have <code> ruby </code> official interpreter 
+Interface. It. 
+</p> 
+
+
+
+<h3> <code> main () </code> </h3> 
+
+<p> 
+The first is fairly straightforward for <code> main () </code> look at it from you. 
+This is a very quick buckets and survive. 
+</p> 
+
+<p class="caption"> ▼ <code> main () </code> </p> 
+<pre class="longlist"> 
+   36 int 
+   37 main (argc, argv, envp) 
+   38 int argc; 
+   39 char ** argv, ** envp; 
+   40 ( 
+   41 # if defined (NT) 
+   42 NtInitialize (& argc, & argv); 
+   43 # endif 
+   44 # if defined (__MACOS__) & & defined (__MWERKS__) 
+   45 argc = ccommand (& argv); 
+   46 # endif 
+   47 
+   48 ruby_init (); 
+   49 ruby_options (argc, argv); 
+   50 ruby_run (); 
+   51 return 0; 
+   52) 
+
+(main.c) 
+</pre> 
+
+
+<p> 
+<code> # ifdef NT </code> of course Windows NT, NT. However, I do not know why but Win9x 
+NT is defined. That is the meaning of Win32 environment. 
+<code> NtInitialize () </code> for the Win32 <code> argc argv </code> and socket system 
+(WinSock) to initialize. This function is initialized so that only 
+The trail, too insipid not omitted. 
+</p> 
+
+<p> 
+Also <code> __MACOS__ </code> "KOSU will" not the Mac OS. Earlier this case Mac OS 9 
+That, Mac OS X is free. I <code> # ifdef </code> is remaining is the first written by 
+And the current version of Mac OS 9 and earlier work. When I was working in the afterglow 
+There is. Thus the number of Northern Ireland. 
+</p> 
+
+<p> 
+By the way, readers familiar with the C language know if you think it is under-bar work 
+Identifier of the system libraries and OS reserved for that. The most reserved 
+It can be used in error or that there is no First, 
+Henrik kind of <code> cc </code> has also become an error. For example, the HP-UX <code> cc </code>. 
+HP-UX is <code> HP </code> of doing things UNIX. Henrik is not HP-UX, 
+A loud voice the opinion of the rejection. 
+</p> 
+
+<p> 
+Well, what are the user applications such identifier is not defined 
+With the promise. 
+</p> 
+
+<p> 
+Rubyさらっinterface, and built the live commentary. 
+</p> 
+
+
+
+<h3> <code> ruby_init () </code> </h3> 
+
+<p> 
+<code> ruby_init () </code> Ruby interpreter is to initialize. Ruby interpreter was present 
+The process can not be only one argument and return value is required. This point is 
+In general, is "lack of features," believed to be. 
+</p> 
+
+<p> 
+Is just one interpreter is at a loss for what is said and done around Ruby development environment. 
+Wax. Specifically, <code> irb </code>, or RubyWin, RDE application said. 
+Rewriting the program to load classes are also supposed to be left out. Li 
+API-driven FUREKUSHON can probably deal with it is quite difficult. 
+</p> 
+
+<p> 
+But Matsumoto, who has apparently been intentionally interpreted to limit the number of one of the 
+. "Initialization is not complete" is理由らしい. For example, low - 
+DE have been extended to remove the library can not be cited as example 
+In the book. 
+</p> 
+
+<p> 
+<code> ruby_init () </code> look at the code is meaningless because it stands for. 
+</p> 
+
+
+
+<h3> <code> ruby_options () </code> </h3> 
+
+<p> 
+Ruby interpreter for the command line to Perth 
+<code> ruby_options () </code>. Of course, the command will use it. 
+</p> 
+
+<p> 
+This function in <code>-r </code> (Library Road) and 
+<code>-e </code> (from the command line program to pass) process is being conducted. 
+And the argument passed to the Ruby file is a program for Perth goes here. 
+</p> 
+
+<p> 
+<code> ruby </code> command file is then given a choice, given 
+<code> stdin </code> in the main reading program. Then he introduced the second part of 
+<code> rb_compile_string () </code> and <code> rb_compile_file () </code> text with the syntax tree 
+Compile. As a result of global variables <code> ruby_eval_tree </code> set 
+By. 
+</p> 
+
+<p> 
+<code> ruby_options () </code> steady code is an abbreviation of fun too. 
+</p> 
+
+
+
+<h3> <code> ruby_run () </code> </h3> 
+
+<p> 
+Finally <code> ruby_run () </code>, <code> ruby_eval_tree </code> set the syntax tree 
+To begin the evaluation. You do not even call this function. <code> ruby_run () </code> except in the 
+For example <code> rb_eval_string () </code> string with a function to evaluate the strategies. 
+</p> 
+
+<p class="caption"> ▼ <code> ruby_run () </code> </p> 
+<pre class="longlist"> 
+1257 void 
+1258 ruby_run () 
+(1259 
+1260 int state; 
+1261 static int ex; 
+1262 volatile NODE * tmp; 
+1263 
+1264 if (ruby_nerrs> 0) exit (ruby_nerrs); 
+1265 
+1266 Init_stack ((void *) & tmp); 
+1267 PUSH_TAG (PROT_NONE); 
+1268 PUSH_ITER (ITER_NOT); 
+1269 if ((state = EXEC_TAG ()) == 0) ( 
+1270 eval_node (ruby_top_self, ruby_eval_tree); 
+1271) 
+1272 POP_ITER (); 
+1273 POP_TAG (); 
+1274 
+1275 if (state & &! Ex) ex = state; 
+1276 ruby_stop (ex); 
+1277) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> PUSH_xxxx () </code> to see the macro, just ignore them. Oh this 
+It is when one or more explanation is right. This is the important thing is 
+<code> eval_node () </code> only. The contents of the said, 
+</p> 
+
+<p class="caption"> ▼ <code> eval_node () </code> </p> 
+<pre class="longlist"> 
+1112 static VALUE 
+1113 eval_node (self, node) 
+1114 VALUE self; 
+1115 NODE * node; 
+(1116 
+1117 NODE * beg_tree = ruby_eval_tree_begin; 
+1118 
+1119 ruby_eval_tree_begin = 0; 
+1120 if (beg_tree) ( 
+1121 rb_eval (self, beg_tree); 
+1122) 
+1123 
+1124 if (! Node) return Qnil; 
+1125 return rb_eval (self, node); 
+1126) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> ruby_eval_tree </code> a <code> rb_eval () </code> call. <code> ruby_eval_tree_begin </code> it is 
+<code> BEGIN </code> registered in the statement to the store. , But this has not really matter. 
+</p> 
+
+<p> 
+Also <code> ruby_run () </code> in <code> ruby_stop () </code>, close them all the threads, 
+All objects to finalize an exception to check the final 
+<code> exit () </code> call. Also how can I not watch it. 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> <code> rb_eval () </code> </h2> 
+
+<h3> Summary </h3> 
+
+<p> 
+Now <code> rb_eval () </code>. This function is <code> ruby </code> nuclear true. 
+<code> rb_eval () </code> is calling once <code> NODE </code> to handle one of the recursion 
+木全body while processing the syntax (see Figure 1). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_evaluator_rbeval.jpg" alt="(rbeval)"> <br> 
+Figure 1: <code> rb_eval </code> image 
+</p> 
+
+<p> 
+<code> rb_eval () </code> and <code> yylex () </code> as well as huge <code> switch </code> statement, and its 
+Each node has a branch. First, let's look at the snap. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> snap </p> 
+<pre class="longlist"> 
+2221 static VALUE 
+2222 rb_eval (self, n) 
+2223 VALUE self; 
+2224 NODE * n; 
+(2225 
+2226 NODE * nodesave = ruby_current_node; 
+2227 NODE * volatile node = n; 
+2228 int state; 
+2229 volatile VALUE result = Qnil; 
+2230 
+2231 # define RETURN (v) do (\ 
+2232 result = (v); \ 
+2233 goto finish; \ 
+2234) while (0) 
+2235 
+2236 again: 
+2237 if (! Node) RETURN (Qnil); 
+2238 
+2239 ruby_last_node = ruby_current_node = node; 
+2240 switch (nd_type (node)) ( 
+             case NODE_BLOCK: 
+               ..... 
+             case NODE_POSTEXE: 
+               ..... 
+             case NODE_BEGIN: 
+                    : 
+             (The case of mass statement) 
+                    : 
+3415 default: 
+3416 rb_bug ( "unknown node type% d", nd_type (node)); 
+3417) 
+3418 finish: 
+3419 CHECK_INTS; 
+3420 ruby_current_node = nodesave; 
+3421 return result; 
+3422) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Back at the entire process node ZURA there, along with the code. 
+Looked at each node of the branch to do so. Code to少なけれ 
+<code> rb_eval () </code> of only processed by them, along with many functions 
+Split. <code> eval.c </code> most of the functions that's how they were able. 
+</p> 
+
+<p> 
+<code> rb_eval () </code> when I return from the value of <code> return </code> well as macro <code> RETURN () </code> to use. 
+Always <code> CHECK_INTS </code> to make sure we pass through. This macro is a thread 
+Relationship, so when I ignored them. 
+</p> 
+
+<p> 
+And finally, local variables <code> result </code> and <code> node </code> to 
+<code> volatile </code> to the GC's measures. 
+</p> 
+
+
+
+<h3> <code> NODE_IF </code> </h3> 
+
+<p> 
+, <Code> if </code> sentence for example <code> rb_eval () </code> evaluation process to look at concrete. 
+Here, <code> rb_eval () </code> description covers 
+</p> 
+
+<ul> 
+<li> source program (Ruby program) </li> 
+<li> corresponding syntax tree </li> 
+<li> <code> rb_eval () </code> in the process code node </li> 
+</ul> 
+
+<p> 
+At the beginning of the three listed would be read. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+if true 
+   'true expr' 
+else 
+   'false expr' 
+end 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree (<code> nodedump </code>) </p> 
+<pre class="longlist"> 
+NODE_NEWLINE 
+nd_file = "if" 
+nd_nth = 1 
+nd_next: 
+     NODE_IF 
+     nd_cond: 
+         NODE_TRUE 
+     nd_body: 
+         NODE_NEWLINE 
+         nd_file = "if" 
+         nd_nth = 2 
+         nd_next: 
+             NODE_STR 
+             nd_lit = "true expr": String 
+     nd_else: 
+         NODE_NEWLINE 
+         nd_file = "if" 
+         nd_nth = 4 
+         nd_next: 
+             NODE_STR 
+             nd_lit = "false expr": String 
+</pre> 
+
+
+<p> 
+The second part of what you see, <code> elsif </code> and <code> unless </code> is designed to be a fitting way 
+<code> NODE_IF </code> organized by a single species, so there is no need for a special treat. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_IF </code> </p> 
+<pre class="longlist"> 
+2324 case NODE_IF: 
+2325 if (trace_func) ( 
+2326 call_trace_func ( "line", node, self, 
+2327 ruby_frame-> last_func, 
+2328 ruby_frame-> last_class); 
+2329) 
+2330 if (RTEST (rb_eval (self, node-> nd_cond))) ( 
+2331 node = node-> nd_body; 
+2332) 
+2333 else ( 
+2334 node = node-> nd_else; 
+2335) 
+2336 goto again; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+The important thing for the last <code> if </code> statement only. 
+Without changing the meaning of this statement, he will be re-written. 
+</p> 
+
+<pre class="emlist"> 
+if (RTEST (rb_eval (self, node-> nd_cond))) ((A) 
+     RETURN (rb_eval (self, node-> nd_body)); (B) 
+) 
+else ( 
+     RETURN (rb_eval (self, node-> nd_else)); (C) 
+) 
+</pre> 
+
+<p> 
+First (A), Ruby's condition formula (node) to assess the value of <code> RTEST () </code> tested. 
+<code> RTEST () </code> is <code> VALUE </code> Ruby is the true test of whether the macro. 
+That is true (B) in <code> then </code> to assess the side sections, 
+If you fake (C), <code> else </code> to evaluate the side sections. 
+</p> 
+
+<p> 
+And Ruby's <code> if </code> ceremony was also having a value of the value and not return it. 
+<code> if </code> value is <code> then </code> side or <code> else </code> side, it runs the value of the clause because, 
+<code> RETURN () </code> returning it to the macro. 
+</p> 
+
+<p> 
+The original list <code> rb_eval () </code> without a recursion <code> goto </code> done, and 
+Back in the construction of the building, but the appearance of a tree "at the end of reflexive → <code> goto </code> conversion." 
+</p> 
+
+
+
+<h3> <code> NODE_NEWLINE </code> </h3> 
+
+<p> 
+<code> if </code> ceremony at the <code> NODE_NEWLINE </code> There was, let us also take a look at the handling code. 
+This node <code> stmt </code> header by the piece looks like a bandwagon. 
+<code> rb_eval () </code>, running programs, files on the position of 
+Successive be used together. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_NEWLINE </code> </p> 
+<pre class="longlist"> 
+3404 case NODE_NEWLINE: 
+3405 ruby_sourcefile = node-> nd_file; 
+3406 ruby_sourceline = node-> nd_nth; 
+3407 if (trace_func) ( 
+3408 call_trace_func ( "line", node, self, 
+3409 ruby_frame-> last_func, 
+3410 ruby_frame-> last_class); 
+3411) 
+3412 node = node-> nd_next; 
+3413 goto again; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+It is not particularly difficult. 
+</p> 
+
+<p> 
+<code> call_trace_func () </code> is <code> NODE_IF </code> also emerged. And this is what 
+It alone 
+Let's just easy to explain. This is Ruby Ruby level of the program to trace SU 
+Because of the feature. Debugger (<code> debug.rb </code>) and tracer (<code> tracer.rb </code>), 
+Profiler (<code> profile.rb </code>), 
+<code> irb </code> (interactive <code> ruby </code> command) are using this feature. 
+</p> 
+
+<p> 
+<code> set_trace_func </code> to call a function, style and method for tracing <code> Proc </code> of 
+Projects can be registered but the <code> Proc </code> objects 
+<code> trace_func </code> on. <code> trace_func </code> 0 is not, that is 
+<code> Qfalse </code> not, it <code> Proc </code> objects and alert mechanism to see 
+(<code> Call_trace_func () </code>) run. 
+</p> 
+
+<p> 
+This <code> call_trace_func () </code> and the trail was as if they have no relationship, a very interesting 
+This document is not to ignore the future. Those who are interested in the block, a Chapter 16 
+I want to give it a read. 
+</p> 
+
+
+
+<h3> pseudo-local variables </h3> 
+
+<p> 
+<code> NODE_IF </code> syntax tree, in terms of the clause was part of the sun. 
+Let's just see part of the leaf. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - pseudo-node local variables </p> 
+<pre class="longlist"> 
+2312 case NODE_SELF: 
+2313 RETURN (self); 
+2314 
+2315 case NODE_NIL: 
+2316 RETURN (Qnil); 
+2317 
+2318 case NODE_TRUE: 
+2319 RETURN (Qtrue); 
+2320 
+2321 case NODE_FALSE: 
+2322 RETURN (Qfalse); 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> self </code> is <code> rb_eval () </code> argument. Go back and check the kind you want. 
+Others are better. 
+</p> 
+
+
+
+<h3> jump tag </h3> 
+
+<p> 
+The following is <code> while </code> corresponding node <code> NODE_WHILE </code> I want to explain it,
+Translate TextOriginal text: Translation: Japanese »English 
+<code> break </code> and <code> next </code> to implement a function of recursion is difficult. 
+<code> ruby </code> syntax of these tags to jump to that achieved by using so 
+First the story. 
+</p> 
+
+<p> 
+Tag and jump to say a word, C-language library function <code> setjmp () </code> and 
+<code> longjmp () </code> of 
+Wrapper. <code> setjmp () </code> I know it's going to be? 
+This function is <code> gc.c </code> also emerged, how are you going to use quite a wrong way. 
+<code> setjmp () </code> jump over the normal function is to use. 
+The following describes the code as an example. Entry point is <code> parent () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> setjmp () </code> and <code> longjmp () </code> </p> 
+<pre class="longlist"> 
+jmp_buf buf; 
+
+void child2 (void) ( 
+     longjmp (buf, 34); / * parent to return at once. 
+                            setjmp return value is 34 * / 
+     puts ( "This message is not absolute power"); 
+) 
+
+void child1 (void) ( 
+     child2 (); 
+     puts ( "This message is not absolute power"); 
+) 
+
+void parent (void) ( 
+     int result; 
+     if ((result = setjmp (buf)) == 0) ( 
+         / * Setjmp returned to normal * / 
+         child1 (); 
+     ) Else ( 
+         / * Child2, came back from longjmp * / 
+         printf ( "% d \ n", result); / * 34 * displayed and / 
+     ) 
+) 
+</pre> 
+
+
+<p> 
+First <code> parent () </code>, <code> setjmp () </code> and a controversial arguments <code> buf </code> when the state is run record 
+By. A little direct say, address and the end of the stack machine 
+The CPU was recorded in the register. <code> setjmp () </code>, I would return its value is 0 <code> setjmp () </code>? 
+They returned to normal, so that, normally I write more code. Resona 
+There may <code> if </code> side. This is <code> child1 () </code> is called. 
+</p> 
+
+<p> 
+Then <code> child2 () </code> control is shifted to <code> longjmp </code> to call it, the argument <code> buf </code> to 
+<code> setjmp </code> of 
+Can suddenly at the top. So in this case <code> parent () </code>-<code> setjmp </code> and 
+Time back. <code> longjmp </code>, when the <code> setjmp () </code> return value <code> longjmp </code> second 
+Argument would be <code> else </code> side will be executed. Incidentally <code> longjmp </code> 0 and passing 
+To force a different value in it will be wasted. 
+</p> 
+
+<p> 
+Examples of the state machine to stack the figure as in Figure 2. 
+Normal function once the call only once per return. But 
+<code> setjmp () </code> will return to the times. <code> fork () </code> kind of thing that I put a little 
+The image is ascertained? 
+
+<p class="image"> 
+<img src="images/ch_evaluator_setjmp.jpg" alt="(setjmp)"> <br> 
+Figure 2: <code> setjmp () </code> <code> longjmp () </code> image 
+</p> 
+
+<p> 
+Now, <code> setjmp () </code> of preparation for this month. <code> eval.c </code>, <code> EXEC_TAG () </code> is <code> setjmp () </code>, 
+<code> JUMP_TAG () </code> is <code> longjmp () </code>, each worth (see Figure 3). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_evaluator_jumptag.jpg" alt="(jumptag)"> <br> 
+Figure 3: image tag jump 
+</p> 
+
+<p> 
+This shows that <code> EXEC_TAG () </code> there are no arguments. <code> jmp_buf </code> is 
+Where are gone. 
+Actually <code> ruby </code>, <code> jmp_buf </code> is <code> struct tag </code> wrapped in a structure. 
+Let's see. 
+</p> 
+
+<p class="caption"> ▼ <code> struct tag </code> </p> 
+<pre class="longlist"> 
+  783 struct tag ( 
+  784 jmp_buf buf; 
+  785 struct FRAME * frame; / * PUSH_TAG when FRAME * / 
+  786 struct iter * iter; / * PUSH_TAG of the ITER * / 
+  787 ID tag; / * * types of tags / 
+  788 VALUE retval; / * jump due to return value * / 
+  789 struct SCOPE * scope; / * PUSH_TAG of the SCOPE * / 
+  790 int dst; / * jump at ID * / 
+  791 struct tag * prev; 
+  792); 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> prev </code> is a member, so <code> struct tag </code> stack is used to link list 
+Structure would be predictable. Also try looking round and round <code> PUSH_TAG () </code> and 
+<code> POP_TAG () </code> the macro, because there are stacks間違いなdo not think so. 
+</p> 
+
+<p class="caption"> ▼ <code> PUSH_TAG () POP_TAG () </code> </p> 
+<pre class="longlist"> 
+  793 static struct tag * prot_tag; / * end of the stack pointer * / 
+
+  795 # define PUSH_TAG (ptag) do (\ 
+  796 struct tag _tag; \ 
+  797 _tag.retval = Qnil; \ 
+  798 _tag.frame = ruby_frame; \ 
+  799 _tag.iter = ruby_iter; \ 
+  800 _tag.prev = prot_tag; \ 
+  801 _tag.scope = ruby_scope; \ 
+  802 _tag.tag = ptag; \ 
+  803 _tag.dst = 0; \ 
+  804 prot_tag = & _tag 
+
+  818 # define POP_TAG () \ 
+  819 if (_tag.prev) \ 
+  820 _tag.prev-> retval = _tag.retval; \ 
+  821 prot_tag = _tag.prev; \ 
+  822) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+唖然here, and I hope it is, what a tag as a local entity BETTER 
+NSUTAKKU solid place to ensure that seem (Fig. 4). And 
+<code> do </code> in <code> while </code> separation of the two macro. Using the C preprocessor 
+But it's a very brutal way into the category might be. Clearly 
+<code> PUSH </code> / <code> POP </code> macro groups and to expand this. 
+</p> 
+
+<pre class="emlist"> 
+do ( 
+     struct tag _tag; 
+     _tag.prev = prot_tag; / * * to save the previous tag / 
+     prot_tag = & _tag; / * new tag stack * / 
+     / * All * / 
+     prot_tag = _tag.prev; / * Previous restituit tag * / 
+) While (0); 
+</pre> 
+
+<p> 
+This way, and nor is it a function call overhead costs memory allocation 
+With no equal. This technique is most <code> ruby </code> assessment instrument <code> rb_eval () </code> made recursion 
+Because the technique can be. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_evaluator_tagstack.jpg" alt="(tagstack)"> <br> 
+Figure 4: tag stack stack is embedded in the machine 
+</p> 
+
+<p> 
+Since this implementation <code> PUSH_TAG () </code> and <code> POP_TAG () </code> is a function of the pair 
+And not put the bad. Also inadvertently used outside evaluator, which I can not 
+Can not be published. 
+</p> 
+
+<p> 
+Incidentally <code> EXEC_TAG () </code> and <code> JUMP_TAG () </code>, let us also take a look at. 
+</p> 
+
+<p class="caption"> ▼ <code> EXEC_TAG () JUMP_TAG () </code> </p> 
+<pre class="longlist"> 
+  810 # define EXEC_TAG () setjmp (prot_tag-> buf) 
+
+  812 # define JUMP_TAG (st) do (\ 
+  813 ruby_frame = prot_tag-> frame; \ 
+  814 ruby_iter = prot_tag-> iter; \ 
+  815 longjmp (prot_tag-> buf, (st)); \ 
+  816) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In this way, <code> setjmp </code> and <code> longjmp </code> respectively <code> EXEC_TAG () </code> and <code> JUMP_TAG () </code> to 
+Under wraps. <code> EXEC_TAG () </code> and a face only a moment of <code> longjmp () </code> of 
+The rapper, but look, this is <code> setjmp () </code> execution. 
+
+<p> 
+Based on more than <code> while </code> mechanism to explain. First <code> while </code> at the beginning 
+<code> EXEC_TAG () </code> a (<code> setjmp </code>). Then <code> rb_eval () </code> to the body to perform a recurrence. 
+And <code> break </code> and <code> next </code> have <code> JUMP_TAG () </code> a (<code> longjmp </code>). 
+Then <code> while </code> loop, but the starting point to get back (Fig. 5). 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_evaluator_whilejmp.jpg" alt="(whilejmp)"> <br> 
+Figure 5: jump-tag <code> while </code> implementation 
+</p> 
+
+<p> 
+This is <code> break </code>, for example, but not implemented can not jump <code> break </code>. 
+Not only. <code> while </code> is only <code> next </code> and <code> redo </code>. Also from the method 
+<code> return </code> and exceptions in <code> rb_eval () </code>越えなけれmust be a wall. And 
+A different tag for each stack is inconvenient to use because, in one way or anotherスタッ 
+QUEUE MATOMETAI a book. 
+</p> 
+
+<p> 
+This is achieved in the "What this jump for jump?" Information 
+I TSUKERE. The right to <code> longjmp () </code> arguments to pass <code> setjmp () </code> return 
+Resona was able to specify a value, it makes it looks good. The following types of 
+As shown in the flag. 
+</p> 
+
+<p class="caption"> ▼ tag type </p> 
+<pre class="longlist"> 
+  828 # define TAG_RETURN 0x1 / * return * / 
+  829 # define TAG_BREAK 0x2 / * break * / 
+  830 # define TAG_NEXT 0x3 / * next * / 
+  831 # define TAG_RETRY 0x4 / * retry * / 
+  832 # define TAG_REDO 0x5 / * redo * / 
+  833 # define TAG_RAISE 0x6 / * * General exception / 
+  834 # define TAG_THROW 0x7 / * throw (in this document扱わない) * / 
+  835 # define TAG_FATAL 0x8 / * Supplementary impossible exception fatal * / 
+  836 # define TAG_MASK 0xf 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Meaning to comment on Friday. Last <code> TAG_MASK </code> is <code> setjmp () </code> return to these values 
+To remove the flag bit mask. <code> setjmp () </code> return value is "Ja 
+Lamp types "of information other than put them there. 
+</p> 
+
+
+
+<h3> <code> NODE_WHILE </code> </h3> 
+
+<p> 
+, <Code> NODE_WHILE </code> code actually spent確かめようtags. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+while true 
+   'true_expr' 
+end 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree (<code> nodedump-short </code>) </p> 
+<pre class="longlist"> 
+NODE_WHILE 
+nd_state = 1 (while) 
+nd_cond: 
+     NODE_TRUE 
+nd_body: 
+     NODE_STR 
+     nd_lit = "true_expr": String 
+</pre> 
+
+
+<p class="caption"> ▼ <code> rb_eval </code> - <code> NODE_WHILE </code> </p> 
+<pre class="longlist"> 
+2418 case NODE_WHILE: 
+2419 PUSH_TAG (PROT_NONE); 
+2420 result = Qnil; 
+2421 switch (state = EXEC_TAG ()) ( 
+2422 case 0: 
+2423 if (node-> nd_state & &! RTEST (rb_eval (self, node-> nd_cond))) 
+2424 goto while_out; 
+2425 do ( 
+2426 while_redo: 
+2427 rb_eval (self, node-> nd_body); 
+2428 while_next: 
+2429; 
+2430) while (RTEST (rb_eval (self, node-> nd_cond))); 
+2431 break; 
+2432 
+2433 case TAG_REDO: 
+2434 state = 0; 
+2435 goto while_redo; 
+2436 case TAG_NEXT: 
+2437 state = 0; 
+2438 goto while_next; 
+2439 case TAG_BREAK: 
+2440 state = 0; 
+2441 result = prot_tag-> retval; 
+2442 default: 
+2443 break; 
+2444) 
+2445 while_out: 
+2446 POP_TAG (); 
+2447 if (state) JUMP_TAG (state); 
+2448 RETURN (result); 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+There are what appear again and again came to the idiom. 
+</p> 
+
+<pre class="emlist"> 
+PUSH_TAG (PROT_NONE); 
+switch (state = EXEC_TAG ()) ( 
+   case 0: 
+     / * Normal operation * / 
+     break; 
+   case TAG_a: 
+     state = 0; / * I was waiting to jump from state to clear * / 
+     / * TAG_a, which has been flying in Operation when * / 
+     break; 
+   case TAG_b: 
+     state = 0; / * I was waiting to jump from state to clear * / 
+     / * TAG_b, which has been flying in Operation when * / 
+     break; 
+   default 
+     break; / * I was waiting to jump is not. Then…… * / 
+) 
+POP_TAG (); 
+if (state) JUMP_TAG (state); / *…… re-jump here. * / 
+</pre> 
+
+<p> 
+First <code> PUSH_TAG () </code> and <code> POP_TAG () </code> a mechanism of the above must be sure to pair 
+. Also <code> EXEC_TAG () </code> must be from within or outside. And now laden with 
+Just <code> jmp_buf </code> and <code> EXEC_TAG () </code>. In other words <code> setjmp () </code>. The return value is 0 
+<code> setjmp () </code> just returned from a normal to do so (usually 
+<code> rb_eval () </code> included). <code> EXEC_TAG () </code> if the return value is zero <code> longjmp () </code> to come back 
+So that only one is necessary jump <code> case </code> chinois, while the rest will be through 
+(<code> Default </code>). 
+</p> 
+
+<p> 
+Jump, it will also look at the code might be easy to understand. 
+The following <code> redo </code> node handler. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_REDO </code> </p> 
+<pre class="longlist"> 
+2560 case NODE_REDO: 
+2561 CHECK_INTS; 
+2562 JUMP_TAG (TAG_REDO); 
+2563 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> JUMP_TAG () </code> fly, the one before the <code> EXEC_TAG () </code> page. 
+When the return value is the argument <code> TAG_REDO </code>. That's what while <code> NODE_WHILE </code> of 
+Have a look at the code, make sure to go through what route they would like. 
+
+<p> 
+Idiom is not as good, <code> NODE_WHILE </code> code, a little more detail 
+Explains. Said <code> case 0: </code> in this process because there is only取りだし, 
+Incidentally, read labels to make it easier to shift some of that also. 
+</p> 
+
+<pre class="emlist"> 
+   if (node-> nd_state & &! RTEST (rb_eval (self, node-> nd_cond))) 
+       goto while_out; 
+   do ( 
+       rb_eval (self, node-> nd_body); 
+   ) While (RTEST (rb_eval (self, node-> nd_cond))); 
+while_out: 
+</pre> 
+
+<p> 
+Conditional expression equivalent to <code> node-> nd_cond </code> in two places <code> rb_eval () </code> that. The first 
+The only condition is determined by the separation. This is <code> do </code> in <code> while </code> and <code> while </code> until a 
+Hardened to handle. <code> node-> nd_state </code> 0 when <code> do </code> in <code> while </code>, 1 and 
+Normal KIGA <code> while </code>. The rest is an honest way so we can follow it. ICHII 
+Clubbing is not explained. 
+
+<p> 
+By the way, if the conditions during the ceremony <code> next </code> and <code> redo </code> should happen easily 
+Infinite loop and feel like one. Of course, this sense of 
+Write code because it is a bad thing, but a little worrisome. 
+So I really do. 
+</p> 
+
+<pre class="screen"> 
+% Ruby-e 'while next do nil end' 
+- e: 1: void value expression 
+</pre> 
+
+<p> 
+It's plain elephant in Perth at the time. Safety, but, 
+The result is not interesting. By the way out of this error 
+Are you <code> parse.y </code>-<code> value_expr () </code>. 
+</p> 
+
+
+
+<h3> <code> while </code> estimate of </h3> 
+
+<p> 
+Long <code> while </code>, but did not have a value, <code> ruby </code> 1.7 from <code> break </code> value in return 
+To happen. Now is the flow estimate to try to pay attention. Local variables <code> result </code> of 
+Value <code> rb_eval () </code> return value to be put to his head to look at. 
+</p> 
+
+<pre class="emlist"> 
+         result = Qnil; 
+         switch (state = EXEC_TAG ()) ( 
+           case 0: 
+             / * This * / 
+           case TAG_REDO: 
+           case TAG_NEXT: 
+             / * Each jump * / 
+
+           case TAG_BREAK: 
+             state = 0; 
+             result = prot_tag-> retval; (A) 
+           default: 
+             break; 
+         ) 
+         RETURN (result); 
+</pre> 
+
+<p> 
+Particularly noteworthy is (A) only. The return value is jumping 
+<code> prot_tag-> retval </code> In other words <code> struct tag </code> to have passed through. 
+This is the way it pass. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_BREAK </code> </p> 
+<pre class="longlist"> 
+2219 # define return_value (v) prot_tag-> retval = (v) 
+
+2539 case NODE_BREAK: 
+2540 if (node-> nd_stts) ( 
+2541 return_value (avalue_to_svalue (rb_eval (self, node-> nd_stts))); 
+2542) 
+2543 else ( 
+2544 return_value (Qnil); 
+2545) 
+2546 JUMP_TAG (TAG_BREAK); 
+2547 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+In this way <code> return_value () </code> tag stack tip of the macro structure 
+Value in it. 
+</p> 
+
+<p> 
+This basic trend is a good thing, but is actually 
+<code> NODE_WHILE </code>-<code> EXEC_TAG () </code> and <code> NODE_BREAK </code>-<code> JUMP_TAG () </code> up 
+Between different <code> EXEC_TAG </code> that it would be possible. For example, exception handling <code> rescue </code> is on the way to 
+It may be entered. 
+</p> 
+
+<pre class="emlist"> 
+while cond # NODE_WHILE in EXEC_TAG () 
+   Here begin # In order to rescue EXEC_TAG () 
+     break 1 
+   rescue 
+   end 
+end 
+</pre> 
+
+<p> 
+So <code> NODE_BREAK </code>, <code> JUMP_TAG () </code> when <code> struct tag </code> is <code> NODE_WHILE </code>, 
+I do not know if laden with tags. If this is <code> POP_TAG () </code> in the following 
+<code> retval </code> to the propagation, particularly in nothing but think about the following values travelled tag and return 
+As before. 
+</p> 
+
+<p class="caption"> ▼ <code> POP_TAG () </code> </p> 
+<pre class="longlist"> 
+  818 # define POP_TAG () \ 
+  819 if (_tag.prev) \ 
+  820 _tag.prev-> retval = _tag.retval; \ 
+  821 prot_tag = _tag.prev; \ 
+  822) while (0) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+If the figure would be in Figure 6. 
+</p> 
+
+<p class="image"> 
+<img src="images/ch_evaluator_usetag.jpg" alt="(usetag)"> <br> 
+Figure 6: Return propagation 
+</p> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2> exception </h2> 
+
+<p> 
+Tag jump on using the example of a second look at the handling of exceptions. 
+</p> 
+
+<h3> <code> raise </code> </h3> 
+
+<p> 
+<code> while </code>, <code> setjmp () </code> side, so I have seen at this time for a change 
+<code> longjmp () </code> we go from side to it. <code> raise </code> entity <code> rb_exc_raise () </code>. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_exc_raise () </code> </p> 
+<pre class="longlist"> 
+3645 void 
+3646 rb_exc_raise (mesg) 
+3647 VALUE mesg; 
+(: 3648 
+3649 rb_longjmp (TAG_RAISE, mesg); 
+3650) 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+<code> mesg </code> is an exception object (<code> Exception </code> following classes instance). 
+The <code> TAG_RAISE </code> SURURASHII jump, but I'll keep an eye on. 
+And <code> rb_longjmp () </code>思いきりeasily to anything below. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_longjmp () </code> (condensed version) </p> 
+<pre class="longlist"> 
+static void 
+rb_longjmp (tag, mesg) 
+     int tag; 
+     VALUE mesg; 
+( 
+     if (NIL_P (mesg)) 
+         mesg = ruby_errinfo; 
+     set_backtrace (mesg, get_backtrace (mesg)); 
+     ruby_errinfo = mesg; 
+     JUMP_TAG (tag); 
+) 
+</pre> 
+
+
+<p> 
+Speaking Well of course it is only natural, normal <code> JUMP_TAG () </code> jump on it. 
+</p> 
+
+<p> 
+<code> ruby_errinfo </code> What? Some <code> grep </code> told me that this variable is the Ruby Glover 
+LE variable <code >$!</code> and the entities. This variable is currently developing an exception and shows 
+To be the entity <code> ruby_errinfo </code> rightly should have the same meaning. 
+</p> 
+
+
+
+<h3> overall picture </h3> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+begin 
+   raise ( 'exception raised') 
+rescue 
+   'rescue clause' 
+ensure 
+   'ensure clause' 
+end 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree (<code> nodedump-short </code>) </p> 
+<pre class="longlist"> 
+NODE_BEGIN 
+nd_body: 
+     NODE_ENSURE 
+     nd_head: 
+         NODE_RESCUE 
+         nd_head: 
+             NODE_FCALL 
+             nd_mid = 3857 (raise) 
+             nd_args: 
+                 NODE_ARRAY [ 
+                 0: 
+                     NODE_STR 
+                     nd_lit = "exception raised": String 
+                 ] 
+         nd_resq: 
+             NODE_RESBODY 
+             nd_args = (null) 
+             nd_body: 
+                 NODE_STR 
+                 nd_lit = "rescue clause": String 
+             nd_head = (null) 
+         nd_else = (null) 
+     nd_ensr: 
+         NODE_STR 
+         nd_lit = "ensure clause": String 
+</pre> 
+
+
+<p> 
+PASAREBERU in <code> rescue </code> and <code> ensure </code> is determined by the order, as the syntax of wood 
+Also strict order at all. Always <code> NODE_ENSURE </code> is the most "in" the next 
+To <code> NODE_RESCUE </code>, the last unit (<code> raise </code> There's) is coming. 
+<code> NODE_BEGIN </code> nodes because it does nothing, but it is <code> NODE_ENSURE </code> is at the top 
+I think. 
+</p> 
+
+<p> 
+That is also protected from the body you want <code> NODE_ENSURE </code> and <code> NODE_RESCUE </code> is coming on, 
+Just <code> EXEC_TAG () </code> only <code> raise </code> to stop. Than to say, I can do it 
+Syntax木上mentioned in the above, he said it is correct. 
+</p> 
+
+
+
+<h3> <code> ensure </code> </h3> 
+
+<p> 
+<code> ensure </code> nodes <code> NODE_ENSURE </code> look at the handler. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_ENSURE </code> </p> 
+<pre class="longlist"> 
+2634 case NODE_ENSURE: 
+2635 PUSH_TAG (PROT_NONE); 
+2636 if ((state = EXEC_TAG ()) == 0) ( 
+2637 result = rb_eval (self, node-> nd_head); (A-1) 
+2638) 
+2639 POP_TAG (); 
+2640 if (node-> nd_ensr) ( 
+2641 VALUE retval = prot_tag-> retval; (B-1) 
+2642 VALUE errinfo = ruby_errinfo; 
+2643 
+2644 rb_eval (self, node-> nd_ensr); (A-2) 
+2645 return_value (retval); (B-2) 
+2646 ruby_errinfo = errinfo; 
+2647) 
+2648 if (state) JUMP_TAG (state); (B-3) 
+2649 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+This <code> if </code> tags are used to treat second branch idioms. 
+<code> EXEC_TAG () </code> to jump to stop them, <code> ensure </code> clause (<code> node-> nd_ensr </code>) to 
+Evaluation, said. No problem about the process. 
+</p> 
+
+<p> 
+The estimate that I think about it. Check the specifications, 
+</p> 
+
+<pre class="emlist"> 
+begin 
+   expr0 
+ensure 
+   expr1 
+end 
+</pre> 
+
+<p> 
+If the sentence, <code> begin </code> overall value of <code> ensure </code> without regardless of <code> expr0 </code> value 
+Is. That is reflected in the (A-1, 2) at, <code> ensure </code> estimate that the clause 
+無碍has been abandoned. 
+</p> 
+
+<p> 
+And (B-1, 3), console jump occurs when dealing with the estimate. 
+If the value is <code> prot_tag-> retval </code> in that it was, <code> ensure </code> Clause 
+Rewritten to avoid accidentally running to take shelter local variables (B-1). 
+And <code> ensure </code> clause evaluation is finished <code> return_value () </code> Undo (B-2). 
+If the jump itself, even if you have not occurred, that is <code> state == 0 </code> But 
+When the first place <code> prot_tag-> retval </code> not used to not matter. 
+</p> 
+
+
+
+<h3> <code> rescue </code> </h3> 
+
+<p> 
+So little time is available again <code> rescue </code> syntax, let us look at the trees. 
+</p> 
+
+<p class="caption"> ▼ source program </p> 
+<pre class="longlist"> 
+begin 
+   raise () 
+rescue ArgumentError, TypeError 
+   'error raised' 
+end 
+</pre> 
+
+
+<p class="caption"> ▼ corresponding syntax tree (<code> nodedump-short </code>) </p> 
+<pre class="longlist"> 
+NODE_BEGIN 
+nd_body: 
+     NODE_RESCUE 
+     nd_head: 
+         NODE_FCALL 
+         nd_mid = 3857 (raise) 
+         nd_args = (null) 
+     nd_resq: 
+         NODE_RESBODY 
+         nd_args: 
+             NODE_ARRAY [ 
+             0: 
+                 NODE_CONST 
+                 nd_vid = 4733 (ArgumentError) 
+             1: 
+                 NODE_CONST 
+                 nd_vid = 4725 (TypeError) 
+             ] 
+         nd_body: 
+             NODE_STR 
+             nd_lit = "error raised": String 
+         nd_head = (null) 
+     nd_else = (null) 
+</pre> 
+
+
+<p> 
+<code> rescue </code> statement you want to target (for use) <code> NODE_RESCUE </code> "inferior" to be 
+I want to confirm. 
+</p> 
+
+<p class="caption"> ▼ <code> rb_eval () </code> - <code> NODE_RESCUE </code> </p> 
+<pre class="longlist"> 
+2590 case NODE_RESCUE: 
+2591 retry_entry: 
+(2592 
+2593 volatile VALUE e_info = ruby_errinfo; 
+2594 
+2595 PUSH_TAG (PROT_NONE); 
+2596 if ((state = EXEC_TAG ()) == 0) ( 
+2597 result = rb_eval (self, node-> nd_head); / * * rating body / 
+2598) 
+2599 POP_TAG (); 
+2600 if (state == TAG_RAISE) (/ * * exception occurs in the body / 
+2601 NODE * volatile resq = node-> nd_resq; 
+2602 
+2603 while (resq) (/ * rescue clause in order to handle * / 
+2604 ruby_current_node = resq; 
+2605 if (handle_rescue (self, resq)) (/ * * If you deal with this section / 
+2606 state = 0; 
+2607 PUSH_TAG (PROT_NONE); 
+2608 if ((state = EXEC_TAG ()) == 0) ( 
+2609 result = rb_eval (self, resq-> nd_body); 
+2610) / * rescue clause to evaluate * / 
+2611 POP_TAG (); 
+2612 if (state == TAG_RETRY) (/ * retry occurred because * / 
+2613 state = 0; 
+2614 ruby_errinfo = Qnil; / * * The exception is a stop / 
+2615 goto retry_entry; / * goto converted * / 
+2616) 
+2617 if (state! = TAG_RAISE) (/ * return, and even * / 
+2618 ruby_errinfo = e_info; / * exception will stop * / 
+2619) 
+2620 break;
+2621) 
+2622 resq = resq-> nd_head; / * * forward to the next section of the rescue / 
+2623) 
+2624) 
+2625 else if (node-> nd_else) (/ * else clause, * / 
+2626 if (! State) (/ * only exception is when you evaluate起きなかった* / 
+2627 result = rb_eval (self, node-> nd_else); 
+2628) 
+2629) 
+2630 if (state) JUMP_TAG (state); / * not waiting for the jump * / 
+2631) 
+2632 break; 
+
+(eval.c) 
+</pre> 
+
+
+<p> 
+Although there are some code size of the node to handle only honest way to make an honest 
+Is not difficult. <code> handle_rescue () </code> is the first appearance, but this function is 
+Not just because I can not see. It only describes the effect. 
+The prototype 
+</p> 
+
+<pre class="emlist"> 
+static int handle_rescue (VALUE self, NODE * resq) 
+</pre> 
+
+<p> 
+, During the current exception (<code> ruby_errinfo </code>) is 
+<code> resq </code> represented by the class (for example <code> TypeError </code>) of the lower class 
+Whether the decision. <code> self </code> passing of the function in <code> resq </code> to evaluate 
+For <code> rb_eval () </code> need to call. 
+
+
+<hr>
+<p>
+The original work is Copyright &copy; 2002 - 2004 Minero AOKI.<br>
+Translations,&nbsp additions,&nbsp and graphics by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"/></a><br/>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+</p>
+
