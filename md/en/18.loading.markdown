@@ -1,0 +1,1065 @@
+
+<h1>Chapter 18: Loading</h1>
+
+	<h2>Outline</h2>
+
+	<h3>Interface</h3>
+
+
+	<p>At the Ruby level, there are two procedures that can be used for
+loading: <code>require</code> and <code>load</code>.</p>
+
+
+<pre class="emlist">require 'uri'            # load the uri library
+load '/home/foo/.myrc'   # read a resource file
+</pre>
+
+	<p>They are both normal methods, compiled and evaluated exactly like any
+other code. It means loading occurs after compilation gave control to
+the evaluation stage.</p>
+
+
+	<p>These two function each have their own use. ‘require’ is to load
+libraries, and <code>load</code> is to load an arbitrary file. Let’s see this in
+more details.</p>
+
+
+	<h4><code>require</code></h4>
+
+
+	<p><code>require</code> has four features:</p>
+
+
+	<ul>
+	<li>the file is searched in the load path</li>
+		<li>it can load extension libraries</li>
+		<li>the <code>.rb</code>/<code>.so</code> extension can be omitted</li>
+		<li>a given file is never loaded more than once</li>
+	</ul>
+
+
+	<p>Ruby’s load path is in the global variable <code>$:</code> that contains an
+array of strings. For example, displaying the content of the <code>$:</code> in
+the environment I usually use would show:</p>
+
+
+<pre class="screen">% ruby -e 'puts $:'
+/usr/lib/ruby/site_ruby/1.7
+/usr/lib/ruby/site_ruby/1.7/i686-linux
+/usr/lib/ruby/site_ruby
+/usr/lib/ruby/1.7
+/usr/lib/ruby/1.7/i686-linux
+.
+</pre>
+
+	<p>Calling <code>puts</code> on an array displays one element by line so it’s easy
+to read.</p>
+
+
+	<p>As I ran <code>configure</code> using <code>--prefix=/usr</code>, the library path is
+<code>/usr/lib/ruby</code> and below, but if you compile it normally from the
+source code, the libraries will be in <code>/usr/local/lib/ruby</code> and below.
+In a Windows environment, there will also be a drive letter.</p>
+
+
+	<p>Then, let’s try to <code>require</code> the standard library <code>nkf.so</code> from the
+load path.</p>
+
+
+<pre class="emlist">require 'nkf'
+</pre>
+
+	<p>If the <code>require</code>d name has no extension, <code>require</code> silently
+compensates. First, it tries with <code>.rb</code>, then with <code>.so</code>. On some
+platforms it also tries the platform’s specific extension for
+extension libraries, for example <code>.dll</code> in a Windows environment or
+<code>.bundle</code> on Mac <span class="caps">OS X</span>.</p>
+
+
+	<p>Let’s do a simulation on my environment. <code>ruby</code> checks the following
+paths in sequential order.</p>
+
+
+<pre class="emlist">/usr/lib/ruby/site_ruby/1.7/nkf.rb
+/usr/lib/ruby/site_ruby/1.7/nkf.so
+/usr/lib/ruby/site_ruby/1.7/i686-linux/nkf.rb
+/usr/lib/ruby/site_ruby/1.7/i686-linux/nkf.so
+/usr/lib/ruby/site_ruby/nkf.rb
+/usr/lib/ruby/site_ruby/nkf.so
+/usr/lib/ruby/1.7/nkf.rb
+/usr/lib/ruby/1.7/nkf.so
+/usr/lib/ruby/1.7/i686-linux/nkf.rb
+/usr/lib/ruby/1.7/i686-linux/nkf.so    found!
+</pre>
+
+	<p><code>nkf.so</code> has been found in <code>/usr/lib/ruby/1.7/i686-linux</code>. Once the
+file has been found, <code>require</code>’s last feature (not loading the file
+more than once) locks the file. The locks are strings put in the
+global variable <code>$"</code>. In our case the string <code>"nkf.so"</code> has been put
+there. Even if the extension has been omitted when calling <code>require</code>,
+the file name in <code>$"</code> has the extension.</p>
+
+
+<pre class="emlist">require 'nkf'   # after loading nkf...
+p $"            # ["nkf.so"]  the file is locked
+
+require 'nkf'   # nothing happens if we require it again
+p $"            # ["nkf.so"]  the content of the lock array 
+                # does not change
+</pre>
+
+	<p>The are two reasons for adding the missing extension. The first one is
+not to load it twice if the same file is later <code>require</code>d with its
+extension. The second one is to be able to load both <code>nkf.rb</code> and
+<code>nkf.so</code>. In fact the extensions are disparate (<code>.so .dll .bundle</code>
+etc.) depending of the platform, but at locking time they all become
+<code>.so</code>. That’s why when writing a Ruby program you can ignore the
+differences of extensions and consider it’s always <code>so</code>. So you can
+say that <code>ruby</code> is quite <span class="caps">UNIX</span> oriented.</p>
+
+
+	<p>By the way, <code>$"</code> can be freely modified even at the Ruby level so we
+cannot say it’s a strong lock. You can for example load an extension
+library multiple times if you clear <code>$"</code>.</p>
+
+
+	<h4><code>load</code></h4>
+
+
+	<p><code>load</code> is a lot easier than <code>require</code>. Like <code>require</code>, it searches the
+file in <code>$:</code>. But it can only load Ruby programs. Furthermore, the
+extension cannot be omitted: the complete file name must always be
+given.</p>
+
+
+<pre class="emlist">load 'uri.rb'   # load the URI library that is part of
+                # the standard library
+</pre>
+
+	<p>In this simple example we try to load a library, but the proper way to
+use <code>load</code> is for example to load a resource file giving its full
+path.</p>
+
+
+	<h3>Flow of the whole process</h3>
+
+
+	<p>If we roughly split it, “loading a file” can be split in:</p>
+
+
+	<ul>
+	<li>finding the file</li>
+		<li>reading the file and mapping it to an internal form</li>
+		<li>evaluating it</li>
+	</ul>
+
+
+	<p>The only difference between <code>require</code> and <code>load</code> is how to find the
+file. The rest is the same in both.</p>
+
+
+	<p>We will develop the last evaluation part a little more. Loaded Ruby
+programs are basically evaluated at the top-level. It means the
+defined constants will be top-level constants and the defined methods
+will be function-style methods.</p>
+
+
+<pre class="emlist">### mylib.rb
+MY_OBJECT = Object.new
+def my_p(obj)
+  p obj
+end
+
+### first.rb
+require 'mylib'
+my_p MY_OBJECT   # we can use the constants and methods defined 
+                 # in an other file
+</pre>
+
+	<p>Only the local variable scope of the top-level changes when the file
+changes. In other words, local variables cannot be shared between
+different files. You can of course share them using for example <code>Proc</code>
+but this has nothing to do with the load mechanism.</p>
+
+
+	<p>Some people also misunderstand the loading mechanism. Whatever the
+class you are in when you call <code>load</code>, it does not change
+anything. Even if, like in the following example, you load a file in
+the <code>module</code> statement, it does not serve any purpose, as everything
+that is at the top-level of the loaded file is put at the Ruby
+top-level.</p>
+
+
+<pre class="emlist">require 'mylib'     # whatever the place you require from, be it 
+                    # at the top-level
+module SandBox
+  require 'mylib'   # or in a module, the result is the same
+end
+</pre>
+
+	<h3>Highlights of this chapter</h3>
+
+
+	<p>Here the mechanism is a lot about details, so it’s a little difficult
+to enumerate it simply. That’s why we will work a little differently
+on it, and we are going to reduce the target to 3 points:</p>
+
+
+	<ul>
+	<li>loading serialisation</li>
+		<li>the repartition of the functions in the different source files</li>
+		<li>how extension libraries are loaded</li>
+	</ul>
+
+
+	<p>Regarding the first point, you will understand it when you see it.</p>
+
+
+	<p>For the second point, the functions that appear in this chapter come
+from 4 different files, <code>eval.c ruby.c file.c dln.c</code>.  We’ll look at
+the reason they are stretched in different places.</p>
+
+
+	<p>The third point is just like its name says. We will see how works the
+currently popular trend of execution time loading, more commonly
+referred to as plug-ins. This is the most important part of this
+chapter so I’d like to use as many pages as possible to talk about it.</p>
+
+
+	<h2>Searching the library</h2>
+
+
+	<h3><code>rb_f_require()</code></h3>
+
+
+	<p>The body of <code>require</code> is <code>rb_f_require</code>. First, we will only look at
+the part concerning the file search. Having many different cases is
+bothersome so we will limit ourselves to the case when no file
+extension is given.</p>
+
+
+▼ <code>rb_f_require()</code> (simplified version)
+<pre class="longlist">5527  VALUE
+5528  rb_f_require(obj, fname)
+5529      VALUE obj, fname;
+5530  {
+5531      VALUE feature, tmp;
+5532      char *ext, *ftptr; /* OK */
+5533      int state;
+5534      volatile int safe = ruby_safe_level;
+5535
+5536      SafeStringValue(fname);
+5537      ext = strrchr(RSTRING(fname)-&gt;ptr, '.');
+5538      if (ext) {
+              /* ...if the file extension has been given... */
+5584      }
+5585      tmp = fname;
+5586      switch (rb_find_file_ext(&amp;tmp, loadable_ext)) {
+5587        case 0:
+5588          break;
+5589
+5590        case 1:
+5591          feature = fname = tmp;
+5592          goto load_rb;
+5593
+5594        default:
+5595          feature = tmp;
+5596          fname = rb_find_file(tmp);
+5597          goto load_dyna;
+5598      }
+5599      if (rb_feature_p(RSTRING(fname)-&gt;ptr, Qfalse))
+5600          return Qfalse;
+5601      rb_raise(rb_eLoadError, "No such file to load -- %s",
+                   RSTRING(fname)-&gt;ptr);
+5602
+5603    load_dyna:
+          /* ...load an extension library... */
+5623      return Qtrue;
+5624
+5625    load_rb:
+          /* ...load a Ruby program... */
+5648      return Qtrue;
+5649  }
+
+5491  static const char *const loadable_ext[] = {
+5492      ".rb", DLEXT,    /* DLEXT=".so", ".dll", ".bundle"... */
+5493  #ifdef DLEXT2
+5494      DLEXT2,          /* DLEXT2=".dll" on Cygwin, MinGW */
+5495  #endif
+5496      0
+5497  };
+
+(eval.c)
+</pre>
+
+	<p>In this function the <code>goto</code> labels <code>load_rb</code> and <code>load_dyna</code> are
+actually like subroutines, and the two variables <code>feature</code> and <code>fname</code>
+are more or less their parameters. These variables have the following
+meaning.</p>
+
+
+	<table>
+		<tbody><tr>
+			<td>variable</td>
+			<td>meaning</td>
+			<td>example</td>
+		</tr>
+		<tr>
+			<td><code>feature</code></td>
+			<td>the library file name that will be put in <code>$"</code></td>
+			<td><code>uri.rb</code>、<code>nkf.so</code></td>
+		</tr>
+		<tr>
+			<td><code>fname</code></td>
+			<td>the full path to the library</td>
+			<td><code>/usr/lib/ruby/1.7/uri.rb</code></td>
+		</tr>
+	</tbody></table>
+
+
+
+
+	<p>The name <code>feature</code> can be found in the function <code>rb_feature_p()</code>. This
+function checks if a file has been locked (we will look at it just
+after).</p>
+
+
+	<p>The functions actually searching for the library are <code>rb_find_file()</code>
+and <code>rb_find_file_ext()</code>. <code>rb_find_file()</code> searches a file in the load
+path <code>$'</code>. <code>rb_find_file_ext()</code> does the same but the difference is
+that it takes as a second parameter a list of extensions
+(i.e. <code>loadable_ext</code>) and tries them in sequential order.</p>
+
+
+	<p>Below we will first look entirely at the file searching code, then we
+will look at the code of the <code>require</code> lock in <code>load_rb</code>.</p>
+
+
+	<h3><code>rb_find_file()</code></h3>
+
+
+	<p>First the file search continues in <code>rb_find_file()</code>. This function
+searches the file <code>path</code> in the global load path <code>$'</code>
+(<code>rb_load_path</code>). The string contamination check is tiresome so we’ll
+only look at the main part.</p>
+
+
+▼ <code>rb_find_file()</code> (simplified version)
+<pre class="longlist">2494  VALUE
+2495  rb_find_file(path)
+2496      VALUE path;
+2497  {
+2498      VALUE tmp;
+2499      char *f = RSTRING(path)-&gt;ptr;
+2500      char *lpath;
+
+2530      if (rb_load_path) {
+2531          long i;
+2532
+2533          Check_Type(rb_load_path, T_ARRAY);
+2534          tmp = rb_ary_new();
+2535          for (i=0;i&lt;RARRAY(rb_load_path)-&gt;len;i++) {
+2536              VALUE str = RARRAY(rb_load_path)-&gt;ptr[i];
+2537              SafeStringValue(str);
+2538              if (RSTRING(str)-&gt;len &gt; 0) {
+2539                  rb_ary_push(tmp, str);
+2540              }
+2541          }
+2542          tmp = rb_ary_join(tmp, rb_str_new2(PATH_SEP));
+2543          if (RSTRING(tmp)-&gt;len == 0) {
+2544              lpath = 0;
+2545          }
+2546          else {
+2547              lpath = RSTRING(tmp)-&gt;ptr;
+2551          }
+2552      }
+
+2560      f = dln_find_file(f, lpath);
+2561      if (file_load_ok(f)) {
+2562          return rb_str_new2(f);
+2563      }
+2564      return 0;
+2565  }
+
+(file.c)
+</pre>
+
+	<p>If we write what happens in Ruby we get the following:</p>
+
+
+<pre class="emlist">tmp = []                     # make an array
+$:.each do |path|            # repeat on each element of the load path
+  tmp.push path if path.length &gt; 0 # check the path and push it
+end
+lpath = tmp.join(PATH_SEP)   # concatenate all elements in one 
+                             # string separated by PATH_SEP
+
+dln_find_file(f, lpath)      # main processing
+</pre>
+
+	<p><code>PATH_SEP</code> is the <code>path separator</code>: <code>':'</code> under <span class="caps">UNIX</span>, <code>';'</code> under
+Windows. <code>rb_ary_join()</code> creates a string by putting it between the
+different elements. In other words, the load path that had become an
+array is back to a string with a separator.</p>
+
+
+	<p>Why? It’s only because <code>dln_find_file()</code> takes the paths as a string
+with <code>PATH_SEP</code> as a separator. But why is <code>dln_find_file()</code>
+implemented like that? It’s just because <code>dln.c</code> is not a library for
+<code>ruby</code>. Even if it has been written by the same author, it’s a general
+purpose library. That’s precisely for this reason that when I sorted
+the files by category in the Introduction I put this file in the
+Utility category. General purpose libraries cannot receive Ruby
+objects as parameters or read <code>ruby</code> global variables.</p>
+
+
+	<p><code>dln_find_file()</code> also expands for example <code>~</code> to the home directory,
+but in fact this is already done in the omitted part of
+<code>rb_find_file()</code>. So in <code>ruby</code>’s case it’s not necessary.</p>
+
+
+	<h3>Loading wait</h3>
+
+
+	<p>Here, file search is finished quickly. Then comes is the loading
+code. Or more accurately, it is “up to just before the load”. The code
+of <code>rb_f_require()</code>’s <code>load_rb</code> has been put below.</p>
+
+
+▼ <code>rb_f_require():load_rb</code>
+<pre class="longlist">5625    load_rb:
+5626      if (rb_feature_p(RSTRING(feature)-&gt;ptr, Qtrue))
+5627          return Qfalse;
+5628      ruby_safe_level = 0;
+5629      rb_provide_feature(feature);
+5630      /* the loading of Ruby programs is serialised */
+5631      if (!loading_tbl) {
+5632          loading_tbl = st_init_strtable();
+5633      }
+5634      /* partial state */
+5635      ftptr = ruby_strdup(RSTRING(feature)-&gt;ptr);
+5636      st_insert(loading_tbl, ftptr, curr_thread);
+          /* ...load the Ruby program and evaluate it... */
+5643      st_delete(loading_tbl, &amp;ftptr, 0); /* loading done */
+5644      free(ftptr);
+5645      ruby_safe_level = safe;
+
+(eval.c)
+</pre>
+
+	<p>Like mentioned above, <code>rb_feature_p()</code> checks if a lock has been put
+in <code>$"</code>. And <code>rb_provide_feature()</code> pushes a string in <code>$"</code>, in other
+words locks the file.</p>
+
+
+	<p>The problem comes after. Like the comment says “the loading of Ruby
+programs is serialised”. In other words, a file can only be loaded
+from one thread, and if during the loading a thread tries to load the
+same file, that thread will wait for the first loading to be finished.
+If it were not the case:</p>
+
+
+<pre class="emlist">Thread.fork {
+    require 'foo'   # At the beginning of require, foo.rb is 
+                    # added to $" 
+}                   # However the thread changes during the evaluation 
+                    # of foo.rb
+require 'foo'       # foo.rb is already in $" so the function returns 
+                    # immediately
+# (A) the classes of foo are used...
+</pre>
+
+	<p>By doing something like this, even though the <code>foo</code> library is not
+really loaded, the code at (A) ends up being executed.</p>
+
+
+	<p>The process to enter the waiting state is simple. A <code>st_table</code> is
+created in <code>loading_tbl</code>, the association “<code>feature=&gt;</code>waiting thread” 
+is recorded in it. <code>curr_thread</code> is in <code>eval.c</code>’s functions, its value
+is the current running thread.</p>
+
+
+	<p>The mechanism to enter the waiting state is very simple. A <code>st_table</code>
+is created in the <code>loading_tbl</code> global variable, and a
+“<code>feature</code>=&gt;<code>loading thread</code>” association is created. <code>curr_thread</code> is
+a variable from <code>eval.c</code>, and its value is the currently running
+thread.  That makes an exclusive lock. And in <code>rb_feature_p()</code>, we
+wait for the loading thread to end like the following.</p>
+
+
+▼ <code>rb_feature_p()</code> (second half)
+<pre class="longlist">5477  rb_thread_t th;
+5478
+5479  while (st_lookup(loading_tbl, f, &amp;th)) {
+5480      if (th == curr_thread) {
+5481          return Qtrue;
+5482      }
+5483      CHECK_INTS;
+5484      rb_thread_schedule();
+5485  }
+
+(eval.c)
+</pre>
+
+	<p>When <code>rb_thread_schedule()</code> is called, the control is transferred to
+an other thread, and this function only returns after the control
+returned back to the thread where it was called. When the file name
+disappears from <code>loading_tbl</code>, the loading is finished so the function
+can end. The <code>curr_thread</code> check is not to lock itself (figure 1).</p>
+
+
+	<p style="text-align:center;"><img src="images/ch_load_loadwait.jpg" title="Serialisation of loads" alt="Serialisation of loads"><br>Figure 1: Serialisation of loads</p>
+
+
+	<h2>Loading of Ruby programs</h2>
+
+
+	<h3><code>rb_load()</code></h3>
+
+
+	<p>We will now look at the loading process itself. Let’s start by the
+part inside <code>rb_f_require()</code>’s <code>load_rb</code> loading Ruby programs.</p>
+
+
+<code>rb_f_require()-load_rb-</code> loading
+<pre class="longlist">5638      PUSH_TAG(PROT_NONE);
+5639      if ((state = EXEC_TAG()) == 0) {
+5640          rb_load(fname, 0);
+5641      }
+5642      POP_TAG();
+
+(eval.c)
+</pre>
+
+	<p>Here the <code>rb_load()</code> that is called is in fact the real form of the
+Ruby level load.</p>
+
+
+	<p>And <code> rb_load () </code>, this that are calling it here are the substance of <code> load </code> of a Ruby level actually.
+I see the same work 1 time, with reason that a/the search becomes necessary another time to say that it is not able to have already done it how.  Thereupon, in the following, the part has been omitted.
+Because even, <code> wrap </code> of the 2nd argument is 0 with the above calling cord also folding it with 0 it has been crowded.  </p>
+
+
+<code>rb_load()</code> (simplified edition)
+<pre class="longlist">void
+rb_load(fname, /* wrap=0 */)
+    VALUE fname;
+{
+    int state;
+    volatile ID last_func;
+    volatile VALUE wrapper = 0;
+    volatile VALUE self = ruby_top_self;
+    NODE *saved_cref = ruby_cref;
+
+    PUSH_VARS();
+    PUSH_CLASS();
+    ruby_class = rb_cObject;
+    ruby_cref = top_cref;           /* (A-1) CREF It changes it */
+    wrapper = ruby_wrapper;
+    ruby_wrapper = 0;
+    PUSH_FRAME();
+    ruby_frame-&gt;last_func = 0;
+    ruby_frame-&gt;last_class = 0;
+    ruby_frame-&gt;self = self;    /*(A-2) ruby_frame-&gt;cbase changes it */
+    ruby_frame-&gt;cbase=(VALUE)rb_node_newnode(NODE_CREF,ruby_class,0,0);
+    PUSH_SCOPE();
+    /* at the top-level the visibility is private by default */
+    SCOPE_SET(SCOPE_PRIVATE);
+    PUSH_TAG(PROT_NONE);
+    ruby_errinfo = Qnil;  /* make sure it's nil */
+    state = EXEC_TAG();
+    last_func = ruby_frame-&gt;last_func;
+    if (state == 0) {
+        NODE *node;
+
+        /* (B) Why or the same handling as eval */
+        ruby_in_eval++;
+        rb_load_file(RSTRING(fname)-&gt;ptr);
+        ruby_in_eval--;
+        node = ruby_eval_tree;
+        if (ruby_nerrs == 0) {   /* no parse error occurred */
+            eval_node(self, node);
+        }
+    }
+    ruby_frame-&gt;last_func = last_func;
+    POP_TAG();
+    ruby_cref = saved_cref;
+    POP_SCOPE();
+    POP_FRAME();
+    POP_CLASS();
+    POP_VARS();
+    ruby_wrapper = wrapper;
+    if (ruby_nerrs &gt; 0) {   /* a parse error occurred */
+        ruby_nerrs = 0;
+        rb_exc_raise(ruby_errinfo);
+    }
+    if (state) jump_tag_but_local_jump(state);
+    if (!NIL_P(ruby_errinfo))   /* an exception was raised during */
+                                /* the loading */
+        rb_exc_raise(ruby_errinfo);
+}
+</pre>
+
+	<p>I thought that it was able to come off from the storm of stack operation finally instantaneous and also even that rushes there is a mentally painful thing, be going to read and be going to cure be going to take a/the feeling.</p>
+
+
+	<p>It is the constant of a long function and most of the cords are occupied with an/the idiom.
+<code>It jumps with PUSH </code>/<code> POP </code>, tag protect.  It is the <code> CREF </code> relation of (A) to want to pay attention even the middle. Because it is always implemented on a/the big league <code> ruby_cref </code> the program that loaded it is not) (a push it evacuates and return it to <code> top_cref </code>.
+<code>Even ruby_frame-&gt;cbase </code> is making a new thing.  </p>
+
+
+	<p>With it and 1 place, (B) it has already made why or <code> ruby_inch_eval </code> When this variable tries to check what influence on earth in the first place the function called <code> rb_compile_error () </code> only it is as.  <code>Outputting a/the message to <code> stderr </code> when preserve a/the message to an/the exception object and be nonexistent so when ruby_inch_eval </code> is real it is that.  S/he seems to plan and seem to say that I stop it because it is poor in an/the evaluation device although I want to output it to <code> stderr </code> suddenly at the time of the perspective drawing error of the main program of a/the command namely. Then eval of <code> ruby_inch_eval </code> is not method <code> eval </code> and function <code> eval () </code> and evaluate of a general verb or it may indicate about and also <code> eval. c </code>.  </p>
+
+
+	<h3><code>rb_load_file()</code></h3>
+
+<p>Here a/the sauce file suddenly moves to ruby. c. I say that is not an actual place this way even more?  Namely, the file of load relation wants to put it to ruby. c basically.  However, I have to use etc. PUSH_TAG () in rb_load (). Therefore it puts it to eval. c unwillingly. It will put it to all the eval. c from the beginning if it is not.</p> 
+
+	<p>It is <code> rb_load_file () </code> with it.</p>
+
+
+▼ <code>rb_load_file()</code>
+<pre class="longlist"> 865  void
+ 866  rb_load_file(fname)
+ 867      char *fname;
+ 868  {
+ 869      load_file(fname, 0);
+ 870  }
+
+(ruby.c)
+</pre>
+
+	<p>Each circle transfer.  (Load_file) of the 2nd argument script shows whether or not that be a truth or falsehood value and be loading the file of the argument of a/the ruby command.  Observing ?? with script=0 because be not so now and want to think the load of a/the library it will be crowded.   Furthermore the one that even a/the meaning thinks in the following, and be not essential has been shaved.</p>
+
+
+▼ <code>load_file()</code> (simplified edition)
+<pre class="longlist">static void
+load_file(fname, /* script=0 */)
+    char *fname;
+{
+    VALUE f;
+    {
+        FILE *fp = fopen(fname, "r");   (A)
+        if (fp == NULL) {
+            rb_load_fail(fname);
+        }
+        fclose(fp);
+    }
+    f = rb_file_open(fname, "r");       (B)
+    rb_compile_file(fname, f, 1);       (C)
+    rb_io_close(f);
+}
+</pre>
+
+	<p>(A) In practice, the try to open using <code>fopen()</code> is to check if the
+file can be opened. If there is no problem, it’s immediately closed.
+It may seem a little useless but it’s an extremely simple and yet
+highly portable and reliable way to do it.</p>
+
+
+	<p>(B) The file is opened once again, this time using the Ruby level
+library <code>File.open</code>. The file was not opened with <code>File.open</code> from the
+beginning not to raise any Ruby exception if the file cannot be
+opened.  Here if any exception occurred we would like to have a
+loading error, but getting the errors related to <code>open</code>, for example
+<code>Errno::ENOENT</code>, <code>Errno::EACCESS</code>..., would be problematic. We are in
+<code>ruby.c</code> so we cannot stop a tag jump.</p>
+
+
+	<p>(C) Using the parser interface <code>rb_compile_file()</code>, the program is
+read from an <code>IO</code> object, and compiled in a syntax tree. The syntax
+tree is added to <code>ruby_eval_tree</code> so there is no need to get the
+result.</p>
+
+
+	<p>That’s all for the loading code. Finally, the calls were quite deep so
+let’s look at the callgraph of <code>rb_f_require()</code> bellow.</p>
+
+
+<pre class="emlist">rb_f_require           ....eval.c
+    rb_find_file            ....file.c
+        dln_find_file           ....dln.c
+            dln_find_file_1
+    rb_load
+        rb_load_file            ....ruby.c
+            load_file
+                rb_compile_file     ....parse.y
+        eval_node
+</pre>
+
+	<p>We’ve seen a lot of callgraphs, they are now common sense.</p>
+
+
+	<h4>The number of <code>open</code> required for loading</h4>
+
+
+	<p>Like we’ve seen before, there are <code>open</code> used just to check if a file
+can be open, but in fact during the loading process other functions
+like for example <code>rb_find_file_ext()</code> also do checks using <code>open</code>. How
+many times is <code>open()</code> called in the whole process?</p>
+
+
+	<p> It is the way of a correct programmer to try to count actually if I think that. It is counted easily if I employ a/the system call tracer.  The tool for that should be found right away if it searches it with Google, although a/the name is scattering with ?? by OS as it says with ktrace or truss, if it is truss, BSD system if it is strace, Solaris if it is Linux. A/the tracer is attached to IDE usually if it is Windows.  </p>
+
+
+	<p>Well, as my main environment is Linux, I looked using <code>strace</code>.
+The output is done on <code>stderr</code> so it was redirected using <code>2&gt;&amp;1</code>.</p>
+
+
+<pre class="screen">% strace ruby -e 'require "rational"' 2&gt;&amp;1 | grep '^open'
+open("/etc/ld.so.preload", O_RDONLY)    = -1 ENOENT
+open("/etc/ld.so.cache", O_RDONLY)      = 3
+open("/usr/lib/libruby-1.7.so.1.7", O_RDONLY) = 3
+open("/lib/libdl.so.2", O_RDONLY)       = 3
+open("/lib/libcrypt.so.1", O_RDONLY)    = 3
+open("/lib/libc.so.6", O_RDONLY)        = 3
+open("/usr/lib/ruby/1.7/rational.rb", O_RDONLY|O_LARGEFILE) = 3
+open("/usr/lib/ruby/1.7/rational.rb", O_RDONLY|O_LARGEFILE) = 3
+open("/usr/lib/ruby/1.7/rational.rb", O_RDONLY|O_LARGEFILE) = 3
+open("/usr/lib/ruby/1.7/rational.rb", O_RDONLY|O_LARGEFILE) = 3
+</pre>
+
+	<p>Because it is open ?? that I is using with real ?? of a/the dynamic link to open of libc.so.6 remaining open be 4 times a/the total.  Three times seem to be useless namely. </p>
+
+
+	<h2>Loading of extension libraries</h2>
+
+
+	<h3><code>rb_f_require()</code>-<code>load_dyna</code></h3>
+
+
+	<p>This time we will see the loading of extension libraries. We will
+start with <code>rb_f_require()</code>’s <code>load_dyna</code>. However, we do not need the
+part about locking anymore so it was removed.</p>
+
+
+▼ <code>rb_f_require()</code>-<code>load_dyna</code>
+<pre class="longlist">5607  {
+5608      int volatile old_vmode = scope_vmode;
+5609
+5610      PUSH_TAG(PROT_NONE);
+5611      if ((state = EXEC_TAG()) == 0) {
+5612          void *handle;
+5613
+5614          SCOPE_SET(SCOPE_PUBLIC);
+5615          handle = dln_load(RSTRING(fname)-&gt;ptr);
+5616          rb_ary_push(ruby_dln_librefs, LONG2NUM((long)handle));
+5617      }
+5618      POP_TAG();
+5619      SCOPE_SET(old_vmode);
+5620  }
+5621  if (state) JUMP_TAG(state);
+
+(eval.c)
+</pre>
+
+	<p>There is not an almost novel thing now.  The messenger the same as an/the idiom or the tag is the method that is not making reliable and even the evacuation/return of the visibility nature scope got used to seeing.   Only dln_load) (is to remain.  This may be doing what on earth. Where it says that next it continues. </p>
+
+
+	<h3<about a="" the="" link="" h3="">
+
+
+	<p>Although dln_load () is why be loading an/the expansion library how is it that says that an/the expansion library is loaded?  First of all a/the conversation is wound toward the physics world bravely to talk it and return and must start from a/the link.
+</p>
+
+
+	<p>Needless to say I think that it is that the program of C is compiled. The program that moves is able to make it if it does it in the following manner, because an/the author is using gcc with Linux.
+</p>
+
+
+<pre class="screen">% gcc hello.c
+</pre>
+
+	<p>It is Hello, World this probably when it does it from a/the file name!  It may be a program.   I am able to implement it in the following manner subsequently because gcc outputs a/the program in the file called a. out with default in UNIX.  </p>
+
+
+<pre class="screen">% ./a.out
+Hello, World!
+</pre>
+
+	<p>Properly it is prepared.</p>
+
+
+	<p> By the way, as for gcc what did it do in fact now?  Although there are many cases I say compiling, compiling usually in fact   /p&gt;
+
+ </p><ol>
+ <li>A/the ??  process (<code> cpp </code>)</li>
+  <li>In the assembler of C language compiling (<code> cc </code>)</li>
+  <li>To the machine language of an/the assembler assembling (<code> as </code>)</li>
+  <li>A/the link (<code> ld </code>)</li>
+ </ol>
+
+	<p> 
+
+It is passing four stages that say that. Seem to there are many cases only the stage of a/the link ends why or without being turned an/the express statement, although I see explanation in various place to ?? compiling assembling among these.  Do not reach to "a/the present" absolutely in the lesson of the history of a/the school and be such that and similar thing?  Thereupon, I will summarize easily what a/the link is first of all, to bury the extinction in this book.  </p>
+
+
+	<p> The program that the stage until assembling completed is becoming "the object file" of some sort of form.  There is something like the following in a major thing with the form like that.  </p>
+
+
+	<ul> 
+  <li><span class="caps">(Close new ELF </span> ,Executable and Linking Format and that UNIX)</li>
+  <li><code>A. out </code> ,assembler output (comparatively old UNIX)</li>
+  <li><span class="caps">COFF </span> ,Common Object File Format (Win32)</li>
+ </ul>
+
+
+	<p> Although they say to make sure a. out of the default output file name of a. out and cc of the object file form are an exception at all. For example file a. out of an/the ELF form is produced if I make it usually with Linux in nowadays.</p>
+
+
+	<p> With it, the such conversation that this object file form differs how may this how be い!.  "The gathering of a/the name" that even which is conceivable, to must recognize now and these object files are that.  For example it is the function name and variable name etc. that exist in this file.  </p>
+
+
+	<p> there are 2 kinds in the gathering of the name that is included in an/the object file.  Namely</p>
+ <ul>
+ <li>The outside function that is calling it from the gathering of a necessary name (for example the inside.  Example: <code> printf </code>)</li>
+  <li>The gathering of the name that I offer (for example the function that am defining in the inside.  Example: <code> hello </code>)</li>
+ </ul>
+
+
+	<p> With it is.  And, confirming that "the gatherings of the necessary name" of all object file are included in" the gathering of the name that "offers when the link has collected a plural object file it is to connect mutually.  It is (Figure 2) that must do it as the object file of somewhere is linked to" the name that pulls a/the line from all "a necessary name" namely and "offer.  (Resolving undefined symbol) that solves an/the undefinition symbol, if I say this case by using terminology, and it becomes.  </p>
+
+
+	<p style="text-align:center;"><img src="images/ch_load_link.jpg" title=" Object file and link   " alt=" Object file and link   "><br>Figure 2:  Object file and link   </p>
+
+
+	<p> The program is why it does not run to that extent really, although it is that it says logically so.  At least the program of C does not run.  It is because I am not able to move if it does not have a/the name into an/the address (a/the number) transformed.  </p>
+
+	<p>Thereupon, a physical connection becomes necessary next to a logical connection. If map an/the object file in real memory space and do not replace all the names with a/the number I do not go.   Concretely speaking calling a/the function the jump tip address of when is adjusted.</p><p>
+
+
+	</p><p>nd depending as if these two connection are done when a/the link is divided into 2 kinds. It is a static link and dynamic link namely.  A/the static link has ended all the stages at the time of compiling.  On the other hand a/the dynamic link delays a little to at the time of the implementation of a/the program the house of a/the connection.  And becoming at the time of the implementation of a program a/the link completes for the first time.  </p>
+
+
+There is the face that is a very simple ideal model that I explained it most here and be distorting reality fairly.  A/the logic connection and physics connection are divided the gathering of a/the name "an/the object file" that nonexistent, says so flatly and it passes naively even to.  However, anyway another book this hit has got able to write if it is speaking seriously, because an/the action differs too much by a/the platform.  I am sufficient to read it even to every {'Linkers &amp;Loaders』John 'Linkers &amp;Loaders』John R. Levine ©, Sakakihara 1 arrow © translation positive edge translation, ohm company, 2001 'expert C programming' \ footnote 'expert C programming' Peter van der Linden ©, Umehara system translation, ASCII publication office, 1996 'Linkers &amp;Loaders' ©footnote more to obtain the knowledge of a real level.
+<p></p>
+
+
+	<h3>Really dynamic link</h3>
+
+
+	<p> And let's enter into the main question by now. Quite a lot parts are actually decided at the time of compiling when it is a dynamic link the that say usually, although "the dynamic" of dynamic link is the meaning that naturally does" at the time of "implementation.  For example the name of a necessary function does will be decided and even in the library of where that is has already understood.  For example it is why it links with the feeling called gcc-lm because it is in libm if it is) (cos.  If I do not designate it at the time of compiling it becomes a link error.  </p>
+
+
+	<p>However, it differs in the case of an/the expansion library.  Even even the name of the library that even, the name of a necessary function links is not decided at the time of compiling. Assembling a/the letter line to during execution of a/the program it must link load. Even even "the logic connection" that says in the word in a while ago namely I must do it at the time of all the implementation.  The mechanism that also a/the dynamic link differs a little the that say usually for that becomes necessary.  </p>
+
+
+	<p>Link, of a/the case that decides all at the time of implementation namely these operation, is called "a dynamic load (dynamic load)" usually.  It makes "a dynamic load" with a/the Chinese character particularly because it is confusing when it is a dynamic link and dynamic load, although it will should open to "a/the dynamic load" and Katakana when I go from the terminology messenger of this book.  </p>
+
+
+	<h3>Dynamic load PI</h3>
+
+
+	<p> Of the explanation is.  It is whether or not it is good if the dynamic load is done how after. Even if it says that it is not difficult and this is good if it is called only because exclusive use API is available to a/the system usually. </p>
+
+
+	<p> For example that is in a wide area comparatively if it is UNIX is API called dlopen. Yet it is not said to that it is if it is "UNIX. For example I use NeXT style API when there is the interface that differs to HP-UX of before entirely a little bit and is Mac OS X.  By the time be on credit as libdl when it is Linux although it is in libc when be a BSD system also and even same dlopen is gallant outside etc. etc., there is not transplantation nature.  It is natural even to differ at all if it becomes other OS, because it differs only this even if be and be claimed to be together with a/the  UNIX system.  First of all same API is impossible to be used.</p>
+
+
+	<p> Thereupon, when it says how it is doing it ruby is preparing the file called dln. c the to absorb the interface that differs at all.  Dln may be the omission of dynamic link.  Dln_load) (is one of the function of the dln. c. </p>
+
+
+	<p>The thing help is that the use pattern of API is same entirely at least, although it is to such a way dynamic load API of scattering entirely.  《主語なし》When it may be which platform</p>  
+
+ <ol>
+  <li>Library is mapped to the address space of a/the process</li>
+  <li>I take the pointer to the function where it is included in a/the library</li>
+  <li>?? of a/the library</li>
+ </ol>
+
+
+
+	<p>という三段階で構成されている。例えば<code>dlopen</code>系APIならば</p>
+
+
+	<ol>
+	<li><code>dlopen</code></li>
+		<li><code>dlsym</code></li>
+		<li><code>dlclose</code></li>
+	</ol>
+
+
+	<p>However it corresponds. If it is Win32 <span class="caps"> API </span>   </p>
+
+
+	<ol>
+    <li><code>LoadLibrary </code> (or <code> LoadLibraryEx </code>)</li>
+		<li><code>GetProcAddress</code></li>
+		<li><code>FreeLibrary</code></li>
+	</ol>
+
+
+	<p>However it corresponds </p>
+
+
+	<p>Lastly, using this API group, you probably will speak dln_load () does what.This to tell the truth, is the call of Init_xxxx ().Whole process to end defect does not fall finally from ruby starting reaching up to here and reaches the point where you can draw.Namely, ruby when it starts, initializes the evaluator and starts the appraisal of the main program which is received with a some method.When the midway require or load happens, the library is loaded and control is moved.Control is moved, if with, it is the Ruby library, pass doing, it is to appraise,</p>
+
+
+	<h3><code>dln_load()</code></h3>
+
+
+	<p> 
+Finally, it could arrive to the content of dln_load ().But the function whose also dln_load () is long, this and there being a reason, structure is simple.First we want looking at approximate shape.</p>
+
+
+▼ <code>dln_load()</code>(Approximate shape)
+<pre class="longlist">void*
+dln_load(file)
+    const char *file;
+{
+#if defined _WIN32 &amp;&amp; !defined __CYGWIN__
+    Win32 API So it loads
+#else
+    Initialization 
+#ifdef each platform of platform independence  every of platform
+..... Routine ......
+#endif
+#endif
+#if !defined(_AIX) &amp;&amp; !defined(NeXT)
+  failed:
+    rb_loaderror("%s - %s", error, file);
+#endif
+    return 0;                   /* dummy return */
+}
+</pre>
+
+	<p> 
+
+It is good if I am thinking only one platform one when I think, because the part that becomes a main like this is separating perfectly every a/the platform.   API that is supported is as follows.  </p>
+ <ul>
+ <li><code>dlopen</code>(UNIX)</li>
+  <li><code>LoadLibrary</code>(Win32)</li>
+  <li><code>shl_load</code>(HP-UX)</li>
+  <li><code>a.out</code>(UNIX)</li>
+		<li><code>rld_load</code>(<code>NeXT4</code>)</li>
+		<li><code>dyld</code>(<code>NeXT</code> Mac <span class="caps">OS X</span>)</li>
+		<li><code>get_image_symbol</code>(BeOS)</li>
+  <li><code>GetDiskFragment</code>(Mac <span class="caps">OS 9</span></li>
+  <li><code>load</code>(AIX)</li>
+ </ul>
+
+	<h3><code>dln_load()</code>-<code>dlopen()</code></h3>
+
+
+	<p>First of all let's go from the cord of API of a/the dlopen system. </p>
+
+
+▼ <code>dln_load()</code>-<code>dlopen()</code>
+<pre class="longlist">1254  void*
+1255  dln_load(file)
+1256      const char *file;
+1257  {
+1259      const char *error = 0;
+1260  #define DLN_ERROR() (error = dln_strerror(),\
+                  strcpy(ALLOCA_N(char, strlen(error) + 1), error))
+1298      char *buf;
+1299      /* Init_xxxx is written to buf, (as for */ 
+          /* territory alloca to allot,) */ 
+1300      init_funcname(&amp;buf, file);
+
+1304      {
+1305          void *handle;
+1306          void (*init_fct)();
+1307
+1308  #ifndef RTLD_LAZY
+1309  # define RTLD_LAZY 1
+1310  #endif
+1311  #ifndef RTLD_GLOBAL
+1312  # define RTLD_GLOBAL 0
+1313  #endif
+1314
+1315          /* (A)Loading the library */
+1316          if ((handle=(void*)dlopen(file, RTLD_LAZY | RTLD_GLOBAL))
+                                                            == NULL) {
+1317              error = dln_strerror();
+1318              goto failed;
+1319          }
+1320
+              /* (B)Init_xxxx()To the pointer is taken */
+1321          init_fct = (void(*)())dlsym(handle, buf);
+1322          if (init_fct == NULL) {
+1323              error = DLN_ERROR();
+1324              dlclose(handle);
+1325              goto failed;
+1326          }
+1327          /* (C)Init_xxxx()It calls */
+1328          (*init_fct)();
+1329
+1330          return handle;
+1331      }
+
+1576    failed:
+1577      rb_loaderror("%s - %s", error, file);
+1580  }
+
+(dln.c)
+</pre>
+
+	<p>(A)When dlopen () of RTLD_LAZY of an/the argument demanded a/the function "actually to solve" an/the unresolved symbol is shown. It returns and, with such a stamp (the handle) that distinguishes a/the library a/the dl*() to a/the value does not go if it always does not gives this.  </p>
+
+
+	<p>(B)dlsym) (takes a/the function pointer from the library where handle shows.  《If returns and the value be NULL it is a failure. Here I take, call a/the pointer to Init_xxxx ().</p>
+
+
+	<p><code>dlclose()</code>poor because the whole library has come not to use it when it does dlclose (), although I should be returning the function pointer of the library where it loaded in) (Init_xxxx.  Until a/the process ends namely dlclose) (is not able to call it. </p>
+
+
+	<h3><code>dln_load()</code>-Win32</h3>
+
+
+	<p>I use LoadLibrary () and GetProcAddress () in Win32. It is very general Win32 API that is appearing in MSDN.
+
+ </p>
+
+
+▼ <code>dln_load()</code>-Win32
+<pre class="longlist">1254  void*
+1255  dln_load(file)
+1256      const char *file;
+1257  {
+
+1264      HINSTANCE handle;
+1265      char winfile[MAXPATHLEN];
+1266      void (*init_fct)();
+1267      char *buf;
+1268
+1269      if (strlen(file) &gt;= MAXPATHLEN) \ 
+                          rb_loaderror("filename too long");
+1270
+1271      /* "Init_xxxx" With the character string which is */
+          /* said is written to buf, (as for the territory  */
+          /* alloca allotment) */
+1272      init_funcname(&amp;buf, file);
+1273
+1274      strcpy(winfile, file);
+1275
+1276      /* Loading the library */
+1277      if ((handle = LoadLibrary(winfile)) == NULL) {
+1278          error = dln_strerror();
+1279          goto failed;
+1280      }
+1281
+1282      if ((init_fct = (void(*)()) \
+              GetProcAddress(handle, buf)) == NULL) {
+1283          rb_loaderror("%s - %s\n%s", dln_strerror(), buf, file);
+1284      }
+1285
+1286      /* Init_xxxx()It calls */
+1287      (*init_fct)();
+1288      return handle;
+
+1576    failed:
+1577      rb_loaderror("%s - %s", error, file);
+1580  }
+
+(dln.c)
+</pre>
+
+	<p><code>LoadLibrary () </code> doing, <code>GetProcAddress () </code>.Because either the fact that it is not,
+ pattern is the same to here, we will have decided to end</p><hr>
+
+The original work is Copyright © 2002 - 2004 Minero AOKI.<br>
+Translated by Vincent ISAMBART<br>
+Translations and Additions by C.E. Thornton<br>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/"><img alt="Creative Commons License" border="0" src="images/somerights20.jpg"></a><br>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/2.5/">Creative Commons Attribution-NonCommercial-ShareAlike2.5 License</a>.
+
