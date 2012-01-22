@@ -1,4 +1,3 @@
-
 ## Garbage Collection
 
 ### Execution time program image</h2>
@@ -348,7 +347,6 @@ when it is no longer in use.
     void this_is_ok ()
     {
         Rb_ary_new ();    /* Object managed by the Ruby GC */
-    away, *
     }
 
 #### Struct RVALUE
