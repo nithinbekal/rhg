@@ -1,19 +1,17 @@
-<div>
 
-<h1> Chapter 12 Bulding a Syntax Tree</h1> 
+## Chapter 12 Bulding a Syntax Tree
 
-<h2> node </h2> 
+### node
 
-<h3> <code> NODE </code> </h3> 
+#### `NODE`
 
-<p> 
-Ruby already mentioned above once the construction program will be converted into a tree. 
-And syntax tree is something concrete to say, "nodes (node)" and called 
-Produced by the structure of the tree structure. <code> ruby </code> nodes are not all <code> NODE </code> type 
-Represented. 
-</p> 
+Ruby already mentioned above once the construction program will be converted
+into a tree. And syntax tree is something concrete to say, "nodes (node)" and
+called Produced by the structure of the tree structure. `ruby` nodes are not 
+all `NODE` type Represented. 
 
-<p class="caption"> ▼ <code> NODE </code> </p> 
+▼ `NODE`
+
 <pre class="longlist"> 
   128 typedef struct RNode ( 
   129 unsigned long flags; 
@@ -44,39 +42,31 @@ Represented.
 (node.h) 
 </pre> 
 
+Structure name `RNode` might guess from the object node is Ruby. And the release 
+of the node that is generated `ruby` is the GABEJIKOREKUTA care.
 
-<p> 
-Structure name <code> RNode </code> might guess from the object node is Ruby 
-. And the release of the node that is generated <code> ruby </code> is the GABEJIKOREKUTA care. 
-</p> 
+So naturally `flags` is the first object structure `basic.flags` same role. 
+That is the type of structure `T_NODE` and `FL_FREEZE` and other records to the
+flag. `NODE` If you add to this type of node `flags` and store them. 
 
-<p> 
-So naturally <code> flags </code> is the first object structure <code> basic.flags </code> same role. 
-That is the type of structure <code> T_NODE </code> and <code> FL_FREEZE </code> and other records to the flag. 
-<code> NODE </code> If you add to this type of node <code> flags </code> and store them. 
-</p> 
-
-<p> 
-What do you mean? Program at <code> if </code> and <code> while </code>, <code> def </code> A variety of 
+What do you mean? Program at `if` and `while`, `def` A variety of 
 Because there are elements, corresponding to the many types of nodes. That's 
-Node type. <code> NODE </code> union is a complex that includes three, 
-The union is using only one type of a node in the decision. 
-For example <code> if </code> nodes <code> NODE_IF </code> If these. 
-</p> 
+Node type. `NODE` union is a complex that includes three, The union is using 
+only one type of a node in the decision. For example `if` nodes `NODE_IF` 
+If these. 
 
-<table> 
-<tbody><tr> <td> member </td><td> </td><td> union members </td><td> </td><td> role </td><td> </td></tr> 
-<tr> <td> <code> u1 </code> </td><td> </td><td> <code> u1.node </code> </td><td> </td><td> conditional expression </td><td> </td></tr> 
-<tr> <td> <code> u2 </code> </td><td> </td><td> <code> u2.node </code> </td><td> </td><td> true body </td><td> </td></tr> 
-<tr> <td> <code> u3 </code> </td><td> </td><td> <code> u3.node </code> </td><td> </td><td> fake body </td><td> </td></tr> 
-</tbody></table> 
 
-<p> 
-Also <code> node.h </code>, the union members to access the macro have been 
-. 
-</p> 
+	member		union members		role
+	--------------------------------------------
+	u1			u1.node				conditional expression
+	u2			u2.node				true body
+	u3			u3.node				false body
 
-<p class="caption"> ▼ <code> NODE </code> macro access </p> 
+
+Also `node.h`, the union members to access the macro have been.
+
+▼ `NODE` macro access
+
 <pre class="longlist"> 
   166 # define nd_head u1.node 
   167 # define nd_alen u2.argc 
@@ -93,21 +83,18 @@ Also <code> node.h </code>, the union members to access the macro have been
 (node.h) 
 </pre> 
 
-
-<p> 
 For example KONNAFUUNI use. 
-</p> 
 
 <pre class="emlist"> 
 NODE * head, * tail; 
 head-&gt; nd_next = tail; / * head-&gt; u3.node = tail * / 
 </pre> 
 
-<p> 
 In the most likely source of this macro it is used. The negligible 
-The exception is <code> parse.y </code>, <code> NODE </code> to generate about it and <code> gc.c </code>, <code> NODE </code> mark 
-It's only two places. 
-</p> 
+The exception is <code> parse.y </code>, <code> NODE </code> to generate
+about it and <code> gc.c </code>, <code> NODE </code> mark It's only two places. 
+
+<div>
 
 <p> 
 By the way like this is to use a macro Why? One is, <code> u1 </code> like it 
