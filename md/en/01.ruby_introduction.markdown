@@ -1279,5 +1279,3 @@ doesn't raise an error.
 Copyright (c) 2002-2004 Minero Aoki, All rights reserved.
 
 English Translation: Sebastian Krause <skra@pantolog.de>
-
-
