@@ -40,8 +40,6 @@ Let us look at how these objects can be displayed on the terminal.
 Everything following the # is a comment. From now on, the results of 
 expressions will be displayed as a comment on the same line.
 
-*TODO*: Fix this section
-
 `p(`……`)` calls the function `p`. It displays arbitrary objects "as such".
 It's basically a debugging function.
 
@@ -49,8 +47,6 @@ Precisely speaking, there are no functions in Ruby, but just for now
 we can think of it as a function.
 
 #### Various literals
-
-*TODO*: Fix this section
 
 Now, let's explain some more the expressions which directly generate objects,
 the so-called literals. First the integers and floating point numbers.
@@ -96,8 +92,6 @@ answer "That's `value`." How can we ask? We use methods.
 
 #### Method calls
 
-*TODO*: Fix this
-
 We can call methods on an object. In C++ Jargon they are member functions.
 I don't think it's necessary to explain what a method is. I'll just explain
 the notation.
@@ -125,8 +119,6 @@ check this). The object interface consists of methods only.
 ### The Program
 
 #### Top Level
-
-*TODO*: Fix this
 
 In Ruby we can just write expressions and it becomes a program.
 One doesn't need to define a `main()` as in C++ or Java.
@@ -164,8 +156,6 @@ When we execute it it looks like this.
     "content"
 
 #### Local Variables
-
-*TODO*: Fix this. Remove pre tags
 
 In Ruby all variables and constants store references to objects.
 That's why one can't copy the content by assigning one variable to another variable.
